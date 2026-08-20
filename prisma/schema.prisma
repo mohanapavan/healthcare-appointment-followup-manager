@@ -30,6 +30,11 @@ enum BookingStatus {
   CANCELLED_BY_PATIENT
   CANCELLED_BY_CLINIC
   NO_SHOW
+  // Not in CLAUDE.md's state diagram verbatim, but needed to distinguish "the
+  // hold TTL lapsed" from an explicit cancellation in the audit trail; the
+  // partial unique index excludes it from the active set exactly like the
+  // other terminal states, so the slot is immediately bookable again.
+  EXPIRED
 }
 
 enum OutboxType {
@@ -40,6 +45,10 @@ enum OutboxType {
   CALENDAR_CREATE
   CALENDAR_UPDATE
   CALENDAR_DELETE
+  // The LLM call is dispatched from here, never inline in a request handler
+  // (CLAUDE.md hard rule #3: "the LLM is never on the critical path").
+  AI_PRE_VISIT_GENERATION
+  AI_POST_VISIT_GENERATION
 }
 
 enum OutboxStatus {

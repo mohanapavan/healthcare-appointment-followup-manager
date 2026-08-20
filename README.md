@@ -16,7 +16,7 @@ was built against and [`PLAN.md`](./PLAN.md) for the build order.
 - [x] Phase 0 — Foundations (Next.js 15, Postgres+Prisma, Auth.js, error
       envelope, structured logging, Vitest wired to a real test DB)
 - [x] Phase 1 — Schema, migrations, DB-level constraints, seed data
-- [ ] Phase 2 — Availability + booking core (slot hold, idempotency, the
+- [x] Phase 2 — Availability + booking core (slot hold, idempotency, the
       50-way concurrency proof)
 - [ ] Phase 3 — Outbox + email reliability
 - [ ] Phase 4 — LLM layer (pre-visit / post-visit, fallback, circuit breaker)
@@ -240,18 +240,86 @@ The same is true of `Leave` date ranges, via a `btree_gist` exclusion
 constraint (`prisma/migrations/*/migration.sql`) — overlapping leave for one
 doctor is rejected by Postgres, not just checked in a service.
 
-The full four-layer strategy (DB constraint, transaction/advisory lock, slot
-hold with TTL, idempotency key) and the 50-way concurrency test are covered
-in [§ Phase 2](#) once that phase lands.
+### The four-layer booking strategy
+
+1. **DB constraint** — the partial unique index above. The real guarantee;
+   everything else exists to make failure cheap and recoverable rather than
+   to *be* the guarantee.
+2. **Transaction + advisory lock.** `holdSlot()` (`src/services/booking.ts`)
+   takes `pg_advisory_xact_lock(hashtext(doctorId || startsAt))` before
+   inserting, so concurrent requests for the *same* slot serialize instead
+   of racing — one insert succeeds, the rest see the row already exists and
+   fail fast, instead of all 50 hitting Postgres and 49 throwing. A Prisma
+   `P2002` (unique violation) is caught and turned into `409 SLOT_TAKEN` with
+   the next three available slots in the body, so a conflict is a recovery
+   path, not a dead end. Read-only checks (leave, working hours) run *before*
+   the lock is taken, to keep the serialized section as short as possible
+   under contention.
+3. **Slot hold with 5-minute TTL.** `POST /api/slots/hold` creates a `HELD`
+   row and returns a `holdToken`; `POST /api/appointments` converts it to
+   `CONFIRMED`. Expired holds are reaped both inline (defensively, inside
+   `holdSlot`, for the exact slot being requested) and by `POST /api/jobs/tick`
+   (all of them, for holds nobody ever retries).
+4. **Idempotency.** `POST /api/appointments` accepts an `Idempotency-Key`
+   header; a repeat with the same key replays the original result. The hold
+   token itself is also a natural idempotency key — replaying the exact same
+   confirm call is safe even without the header.
+
+### Concurrency proof
+
+`scripts/concurrency-test.ts` fires 50 real, concurrent `POST /api/slots/hold`
+HTTP requests (not direct function calls) at one doctor + slot, against a
+production build (`npm run build && npm start`), as one seeded patient — the
+partial unique index is keyed on `(doctorProfileId, startsAt)` only, so this
+is exactly the race the constraint exists to prevent, without needing 50
+throwaway accounts. Run it yourself:
+
+```bash
+npm run build && npm start   # separate terminal
+npm run concurrency-test
+```
+
+Result ([full output](./docs/concurrency-output.txt)):
+
+```
+Fired 50 concurrent requests in 31012ms.
+  201 Created:     1
+  409 Conflict:    49
+  other:           0
+
+Rows in the database for this slot: 1
+  id=dd36c8c4-1e5b-42e3-a2bc-f0705760c29e status=HELD patientId=1857dc5b-392a-4394-b93c-ff81663e99b9
+
+Result: PASS
+```
+
+Exactly 1 success, 49 clean conflicts, 1 database row. Note: this deliberately
+adversarial case (50 requests for the literal same slot at the literal same
+instant) needed a widened Prisma transaction `maxWait`/`timeout` and a larger
+Postgres connection pool (see `.env.example`) — defaults are tuned for normal
+traffic, not that scenario. The correctness guarantee (the DB constraint)
+does not depend on this tuning; only how fast the 49 losers each hear "no"
+does.
 
 ## API
 
-Documented as each phase adds routes. So far:
+Documented as each phase adds routes.
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | `GET`/`POST` | `/api/auth/[...nextauth]` | — | Auth.js credentials sign-in |
 | `GET` | `/api/health` | none | Liveness + DB connectivity check |
+| `GET` | `/api/doctors?specialisation=` | any signed-in user | List/search doctors |
+| `GET` | `/api/doctors/:id/availability?date=YYYY-MM-DD` | any signed-in user | Computed open slots |
+| `POST` | `/api/slots/hold` | PATIENT | `{ doctorProfileId, startsAt }` → `{ holdToken, holdExpiresAt, ... }`, `409 SLOT_TAKEN` on conflict |
+| `POST` | `/api/appointments` | PATIENT | `{ holdToken, symptomText }` + optional `Idempotency-Key` header → confirms a hold |
+| `POST` | `/api/jobs/tick` | `Authorization: Bearer $CRON_SECRET` | Reaps expired holds (outbox draining lands in Phase 3) |
 
 Every route uses one error envelope: `{ error: { code, message, details? } }`
-(`src/lib/errors.ts`). Every response carries `x-correlation-id`.
+(`src/lib/errors.ts`) with stable codes (`SLOT_TAKEN`, `HOLD_EXPIRED`,
+`HOLD_NOT_FOUND`, `DOCTOR_ON_LEAVE`, `ILLEGAL_STATE_TRANSITION`, `VALIDATION_ERROR`,
+`UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `LLM_UNAVAILABLE`, `RATE_LIMITED`,
+`INTERNAL_ERROR`). Every response carries `x-correlation-id`. Layering is
+route → service → repository: business rules live in `src/services/*` and
+are unit-tested without HTTP (`tests/booking.test.ts`); route handlers only
+parse input (Zod), call a service, and map the result to a response.

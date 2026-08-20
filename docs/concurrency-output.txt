@@ -1,0 +1,16 @@
+=== Concurrency proof: 50 simultaneous holds for one slot ===
+Run at: 2026-08-20T13:40:02.693Z
+Target: http://localhost:3000
+Doctor: Dr. Meera Nair (ab1a018d-5e0d-4c0e-9762-2ae9b524953d)
+Patient: patient1@clinic.test (1857dc5b-392a-4394-b93c-ff81663e99b9)
+Slot: 2026-08-21T09:00:00.000Z
+
+Fired 50 concurrent requests in 31012ms.
+  201 Created:     1
+  409 Conflict:    49
+  other:           0
+
+Rows in the database for this slot: 1
+  id=dd36c8c4-1e5b-42e3-a2bc-f0705760c29e status=HELD patientId=1857dc5b-392a-4394-b93c-ff81663e99b9
+
+Result: PASS
