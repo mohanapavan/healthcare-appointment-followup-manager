@@ -304,6 +304,17 @@ model GoogleCalendarAccount {
 // Audit trail
 // ---------------------------------------------------------------------------
 
+// Singleton row (id fixed at 1). Persisted rather than in-memory because
+// /api/jobs/tick and API routes are stateless serverless invocations on the
+// target hosts (Vercel/Render) — an in-process circuit breaker would reset
+// on every cold start and never actually trip.
+model AiCircuitBreaker {
+  id                  Int       @id @default(1)
+  consecutiveFailures Int       @default(0)
+  openUntil           DateTime?
+  updatedAt           DateTime  @updatedAt
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   actorId   String?

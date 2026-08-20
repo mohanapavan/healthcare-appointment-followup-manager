@@ -19,7 +19,7 @@ was built against and [`PLAN.md`](./PLAN.md) for the build order.
 - [x] Phase 2 — Availability + booking core (slot hold, idempotency, the
       50-way concurrency proof)
 - [x] Phase 3 — Outbox + email reliability
-- [ ] Phase 4 — LLM layer (pre-visit / post-visit, fallback, circuit breaker)
+- [x] Phase 4 — LLM layer (pre-visit / post-visit, fallback, circuit breaker)
 - [ ] Phase 5 — Doctor leave conflict flow
 - [ ] Phase 6 — Google Calendar
 - [ ] Phase 7 — Medication reminders
@@ -337,10 +337,80 @@ growing backoff before dead-lettering — see `tests/outbox.test.ts`.
   (`src/lib/email/types.ts`): `EtherealEmailProvider` (default, zero setup —
   auto-provisions a throwaway inbox, logs a preview URL per send) or
   `ResendEmailProvider` (`EMAIL_PROVIDER=resend` + `RESEND_API_KEY`).
-- Types not yet wired to a handler (`CALENDAR_*`, `AI_*_GENERATION`) are
+- Types not yet wired to a handler (`CALENDAR_*`, pending Phase 6) are
   deliberately left unclaimed by the worker rather than faked — better
   PENDING-forever-until-its-phase-lands than silently marked SENT for a
-  side effect that never ran.
+  side effect that never ran. `AI_PRE_VISIT_GENERATION` and
+  `AI_POST_VISIT_GENERATION` are handled as of Phase 4.
+
+## LLM layer
+
+`src/lib/llm/`. The LLM is never on the critical path: `POST /api/appointments`
+returns as soon as the booking is confirmed, and pre-visit generation runs
+later, dispatched by the outbox worker like any other side effect. Same
+pattern for post-visit summaries, dispatched from `POST
+/api/appointments/:id/complete`.
+
+**Failure handling**, all proven in `tests/llm.test.ts` /
+`tests/llm-pii.test.ts` (no real API key needed — everything here runs
+against the deterministic fallback or a mocked provider):
+- No `GEMINI_API_KEY` configured → straight to fallback, no network call.
+- 10s timeout, single retry, then fallback (`src/lib/llm/index.ts`).
+- A response that fails Zod validation is treated as a failure, not a
+  result: retried once with the validation error appended to the prompt,
+  then fallback.
+- **Circuit breaker**: after 3 consecutive provider failures, skip calling
+  for 60s and go straight to fallback. Persisted in the DB
+  (`AiCircuitBreaker`, a singleton row) rather than in memory — this app's
+  target hosts (Vercel/Render free tier) run `/api/jobs/tick` and API routes
+  as stateless serverless invocations, so an in-process breaker would reset
+  every cold start and never actually trip.
+- **Deterministic fallback**: symptom/notes text passed through verbatim
+  (never paraphrased by a fallback that has no business rewriting clinical
+  language), medication schedule built from the structured `PrescriptionItem`
+  DB rows, generic-but-real follow-up questions/steps. Marked
+  `source: "FALLBACK"` on every `AiGeneration` audit row and (once Phase 8
+  renders it) in the UI.
+- **Red-flag escalation is deterministic, not model-controlled**: keyword
+  list in `src/lib/llm/red-flags.ts` forces `urgency: "High"` regardless of
+  what the model (or the fallback) returned.
+- **PII**: only symptom text / clinical notes / structured medication fields
+  ever reach the provider — never name, email, phone, or DOB. Enforced by
+  the function signatures themselves (`generatePreVisitSummary` takes a
+  bare `symptomText` string, nothing else); proven in `tests/llm-pii.test.ts`
+  by capturing the literal prompt sent to a mocked provider and asserting a
+  known patient's name/email never appear in it.
+- Every generation is audited: `rawResponse`, `parsedOutput`, `promptVersion`,
+  `model`, `latencyMs`, `source`, `tokenCount`, `correlationId` on every
+  `AiGeneration` row (`src/lib/llm/index.ts`), regardless of source.
+
+### Prompts (versioned in `src/lib/llm/prompts.ts`)
+
+**Pre-visit** (`pre-visit-v1`) — role, hard constraints (no diagnosis, no
+inventing unreported symptoms, forced `"High"` on red-flag text), strict
+JSON schema, two few-shot examples (one the vague/empty-input edge case):
+
+```
+You are a clinical intake assistant helping a doctor prepare for a patient visit.
+
+Hard constraints:
+- You do NOT diagnose. You summarise and triage for the doctor's convenience only.
+- Do not invent symptoms the patient did not report. If the text is vague or
+  empty, say so in "chiefComplaint" rather than guessing at specifics.
+- If the symptom text contains any red-flag emergency symptom (...), you MUST
+  return "urgency": "High".
+- Return ONLY valid JSON matching this exact schema, no other text:
+  { "urgency": "Low" | "Medium" | "High", "chiefComplaint": string, "questions": [string, string, string] }
+...
+Now summarise this patient's reported symptoms. Symptoms: "<symptomText>"
+```
+
+**Post-visit** (`post-visit-v1`) — 8th-grade reading level, medication
+schedule constrained to *only* the structured medication list passed in
+(forbidding invented medication), explicit follow-up steps, same
+strict-JSON + few-shot pattern. Full text of both prompts, including the
+validation-retry variant, is in `src/lib/llm/prompts.ts` — not duplicated
+here to avoid the two drifting out of sync.
 
 ## API
 
@@ -354,6 +424,7 @@ Documented as each phase adds routes.
 | `GET` | `/api/doctors/:id/availability?date=YYYY-MM-DD` | any signed-in user | Computed open slots |
 | `POST` | `/api/slots/hold` | PATIENT | `{ doctorProfileId, startsAt }` → `{ holdToken, holdExpiresAt, ... }`, `409 SLOT_TAKEN` on conflict |
 | `POST` | `/api/appointments` | PATIENT | `{ holdToken, symptomText }` + optional `Idempotency-Key` header → confirms a hold |
+| `POST` | `/api/appointments/:id/complete` | DOCTOR (owner only) | `{ clinicalNotes, prescriptionItems[] }` → CONFIRMED → COMPLETED, queues post-visit AI generation |
 | `POST` | `/api/jobs/tick` | `Authorization: Bearer $CRON_SECRET` | Reaps expired holds, schedules reminders, drains the outbox |
 | `GET` | `/api/admin/outbox?status=` | ADMIN | List outbox events (dead-letter view) |
 | `POST` | `/api/admin/outbox/:id/retry` | ADMIN | Manually retry a `FAILED` event |

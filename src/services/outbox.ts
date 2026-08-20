@@ -10,15 +10,23 @@ import {
   medicationReminderEmail,
 } from "@/lib/email/templates";
 import { findNextAvailableSlots } from "./availability";
+import { generatePostVisitSummary, generatePreVisitSummary } from "@/lib/llm";
 
 // 1m, 5m, 25m, 2h, 12h — after the 5th failed attempt, dead-letter.
 const BACKOFF_MINUTES = [1, 5, 25, 120, 720];
 const MAX_ATTEMPTS = 5;
-// Types with a real dispatcher below. Anything else (CALENDAR_*,
-// AI_*_GENERATION) is intentionally left unclaimed until its own phase
-// lands — better to leave it PENDING than to mark it SENT/FAILED for a
-// side effect that never actually ran.
-const HANDLED_TYPES = ["BOOKING_CONFIRMATION", "BOOKING_REMINDER", "BOOKING_CANCELLATION", "MEDICATION_REMINDER"];
+// Types with a real dispatcher below. Anything else (CALENDAR_*) is
+// intentionally left unclaimed until its own phase lands — better to leave
+// it PENDING than to mark it SENT/FAILED for a side effect that never
+// actually ran.
+const HANDLED_TYPES = [
+  "BOOKING_CONFIRMATION",
+  "BOOKING_REMINDER",
+  "BOOKING_CANCELLATION",
+  "MEDICATION_REMINDER",
+  "AI_PRE_VISIT_GENERATION",
+  "AI_POST_VISIT_GENERATION",
+];
 // A row stuck in PROCESSING for more than 5 minutes is assumed to be from a
 // worker that crashed mid-dispatch, and is eligible to be reclaimed — see
 // the literal "interval '5 minutes'" in claimDueOutboxEvents below.
@@ -203,6 +211,37 @@ async function loadBookingContext(bookingId: string) {
   });
 }
 
+/**
+ * The LLM call lives here, dispatched from the outbox worker — never inline
+ * in the booking-confirm request handler (CLAUDE.md hard rule #3). A
+ * fallback-sourced result still counts as dispatch success: graceful
+ * degradation is the point, not a retry-worthy failure.
+ */
+async function dispatchAiPreVisitGeneration(payload: BookingPayload): Promise<string> {
+  const submission = await prisma.symptomSubmission.findUniqueOrThrow({
+    where: { bookingId: payload.bookingId },
+  });
+  const result = await generatePreVisitSummary(payload.bookingId, submission.symptomText, payload.correlationId);
+  return `urgency=${result.urgency}`;
+}
+
+async function dispatchAiPostVisitGeneration(payload: {
+  prescriptionId: string;
+  correlationId?: string;
+}): Promise<string> {
+  const prescription = await prisma.prescription.findUniqueOrThrow({
+    where: { id: payload.prescriptionId },
+    include: { items: true },
+  });
+  await generatePostVisitSummary(
+    prescription.id,
+    prescription.clinicalNotes,
+    prescription.items,
+    payload.correlationId
+  );
+  return `prescription=${prescription.id}`;
+}
+
 async function dispatch(event: OutboxEvent): Promise<string> {
   const payload = event.payload as Record<string, unknown>;
   switch (event.type) {
@@ -214,6 +253,10 @@ async function dispatch(event: OutboxEvent): Promise<string> {
       return dispatchBookingCancellation(payload as unknown as BookingPayload & { reason?: string });
     case "MEDICATION_REMINDER":
       return dispatchMedicationReminder(payload as unknown as MedicationReminderPayload);
+    case "AI_PRE_VISIT_GENERATION":
+      return dispatchAiPreVisitGeneration(payload as unknown as BookingPayload);
+    case "AI_POST_VISIT_GENERATION":
+      return dispatchAiPostVisitGeneration(payload as unknown as { prescriptionId: string; correlationId?: string });
     default:
       throw new Error(`No dispatcher for outbox event type ${event.type}`);
   }
