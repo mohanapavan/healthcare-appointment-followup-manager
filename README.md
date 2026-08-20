@@ -1,13 +1,35 @@
 # Healthcare Appointment & Follow-up Manager
 
-A clinic booking platform with separate patient, doctor, and admin portals:
-symptom-aware booking with a hard double-booking guarantee, AI pre-visit and
-post-visit summaries with deterministic fallback, doctor leave with a
-conflict-resolution flow, and email + Google Calendar sync driven by a
-transactional outbox. See [`CLAUDE.md`](./CLAUDE.md) for the full spec this
-was built against, [`PLAN.md`](./PLAN.md) for the build order,
-[`DESIGN.md`](./DESIGN.md) for the frontend's design tokens and rationale,
-and [`WRITEUP.md`](./WRITEUP.md) for the 800-word system design write-up
+> A clinic needs more than a basic booking form. A **concurrency-safe
+> booking core** (a real Postgres constraint, not application logic, proven
+> under 50 simultaneous requests), a **transactional outbox** so email/
+> calendar/LLM side effects can never be lost or duplicated, and an **LLM
+> triage layer** that degrades to a deterministic fallback instead of
+> breaking the booking flow — wrapped in three separate patient/doctor/admin
+> portals, not one dashboard with the nav filtered by role.
+
+![Framework](https://img.shields.io/badge/Framework-Next.js%2015-000000?style=flat-square&logo=nextdotjs&logoColor=white)
+![Database](https://img.shields.io/badge/Database-PostgreSQL-336791?style=flat-square&logo=postgresql&logoColor=white)
+![ORM](https://img.shields.io/badge/ORM-Prisma-2D3748?style=flat-square&logo=prisma&logoColor=white)
+![Language](https://img.shields.io/badge/Language-TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Auth](https://img.shields.io/badge/Auth-Auth.js-6E56CF?style=flat-square)
+![LLM](https://img.shields.io/badge/LLM-Gemini%20%2B%20fallback-F9AB00?style=flat-square)
+![Calendar](https://img.shields.io/badge/Calendar-Google%20Calendar%20API-4285F4?style=flat-square&logo=googlecalendar&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white)
+![Concurrency proof](https://img.shields.io/badge/Concurrency%20proof-1%20success%20%2F%2049%20conflicts-success?style=flat-square)
+
+**Keywords:** double-booking prevention · transactional outbox pattern ·
+slot hold with TTL · idempotent booking API · concurrency-safe scheduling ·
+LLM pre-visit triage · deterministic LLM fallback · circuit breaker ·
+red-flag symptom escalation · doctor leave conflict resolution · Next.js
+App Router · Prisma · PostgreSQL partial unique index · Auth.js RBAC ·
+Google Calendar OAuth sync · medication reminders · healthcare scheduling
+system.
+
+See [`CLAUDE.md`](./CLAUDE.md) for the full spec this was built against,
+[`PLAN.md`](./PLAN.md) for the build order, [`DESIGN.md`](./DESIGN.md) for
+the frontend's design tokens and rationale, and
+[`WRITEUP.md`](./WRITEUP.md) for the 800-word system design write-up
 (double-booking prevention, leave conflict handling, the slot hold
 mechanism, notification failure handling, and what I'd do differently).
 
