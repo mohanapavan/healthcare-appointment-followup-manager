@@ -23,7 +23,7 @@ was built against and [`PLAN.md`](./PLAN.md) for the build order.
 - [x] Phase 5 — Doctor leave conflict flow
 - [x] Phase 6 — Google Calendar
 - [x] Phase 7 — Medication reminders
-- [ ] Phase 8 — Frontend (three portals)
+- [x] Phase 8 — Frontend (three portals)
 - [ ] Phase 9 — Deploy + final docs
 
 ## Quick start
@@ -83,8 +83,9 @@ variable does.
 ### Tests
 
 ```bash
-npm test               # Vitest, against the port-5433 test DB — never the dev DB
-npm run concurrency-test   # the 50-way double-booking proof (Phase 2)
+npm test                    # Vitest, against the port-5433 test DB — never the dev DB
+npm run concurrency-test    # the 50-way double-booking proof (Phase 2)
+npm run authorization-proof # a patient hitting every doctor/admin-only route -> 403 (needs `npm run dev` running)
 ```
 
 ## Database schema
@@ -528,6 +529,48 @@ not-yet-sent reminder for that medication and leaves already-sent ones as a
 record. Both routes verify the caller owns the prescription (`NOT_FOUND` for
 anyone else's, not `FORBIDDEN` — see [§ API design](#api) on 403 vs 404).
 
+## Frontend
+
+Three separate portals (`src/app/{patient,doctor,admin}`), each gated server-side
+in its `layout.tsx` (redirects to `/login` if unauthenticated, to `/` if
+signed in as the wrong role) — the same "UI role checks are cosmetic"
+principle as the API, applied to pages. Design tokens, type system, and the
+day-rail signature component are covered in [`DESIGN.md`](./DESIGN.md).
+
+- **Patient**: search doctors → day rail → hold (live countdown) → symptom
+  form → confirm; "My appointments" with cancel, pre-visit summary (urgency
+  badge, AI disclosure), post-visit summary + medication schedule, and a
+  per-medication reminder schedule the patient can view and stop.
+- **Doctor**: today's clinic day (patient name, chief complaint, urgency —
+  sorted by time, urgency shown via label+icon+color per the brief's "never
+  color alone" rule); appointment detail with the full pre-visit summary and
+  suggested questions; complete-visit form (notes + a dynamic prescription
+  list); leave request with the impact preview before confirming.
+- **Admin**: doctor roster with working hours at a glance, a create-doctor
+  form (account + specialisation + working days/hours in one step); outbox
+  health dashboard (counts by status) and the dead-letter list with a
+  one-click retry.
+
+Every state the brief calls for is designed, not just the happy path:
+loading (skeletons), empty (`EmptyState`, an invitation to act, not a dead
+end), error (`ErrorBanner`, what happened + retry where retrying makes
+sense), and the AI-fallback state (the disclosure line, always present
+regardless of source). Visible focus rings and `prefers-reduced-motion`
+handling are global (`globals.css`); the day rail's countdown is the one
+motion in the whole app that isn't a direct response to a click. Checked at
+375px viewport width (patient/doctor nav, the day rail) with no horizontal
+overflow. Not independently measured with Lighthouse in this environment —
+the accessibility choices above (semantic landmarks, real `<label>`s, focus
+management, redundant urgency signaling) were made deliberately against the
+≥95 target, not verified against it with the actual tool.
+
+**Real bugs this actually caught** (not hypothetical — found by using the
+feature in a browser, per this project's own process): a display-duplication
+bug, a timezone bug where appointment times rendered in the server's own
+timezone instead of the clinic's, and a day-boundary bug where a doctor's
+"today" view silently matched zero bookings. All three are in the commit
+history with the fix and the reasoning; see `git log`.
+
 ## API
 
 Documented as each phase adds routes.
@@ -537,6 +580,8 @@ Documented as each phase adds routes.
 | `GET`/`POST` | `/api/auth/[...nextauth]` | — | Auth.js credentials sign-in |
 | `GET` | `/api/health` | none | Liveness + DB connectivity check |
 | `GET` | `/api/doctors?specialisation=` | any signed-in user | List/search doctors |
+| `POST` | `/api/doctors` | ADMIN | `{ email, password, name, specialisation, slotDurationMins, workingHours[] }` → creates the account + profile + hours |
+| `GET` | `/api/admin/doctors` | ADMIN | Full doctor roster incl. email + working hours (the admin table) |
 | `GET` | `/api/doctors/:id/availability?date=YYYY-MM-DD` | any signed-in user | Computed open slots |
 | `POST` | `/api/slots/hold` | PATIENT | `{ doctorProfileId, startsAt }` → `{ holdToken, holdExpiresAt, ... }`, `409 SLOT_TAKEN` on conflict |
 | `POST` | `/api/appointments` | PATIENT | `{ holdToken, symptomText }` + optional `Idempotency-Key` header → confirms a hold |
