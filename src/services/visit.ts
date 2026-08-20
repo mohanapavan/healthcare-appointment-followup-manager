@@ -2,6 +2,7 @@ import { Prescription } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { computeReminderRows } from "./medication";
 
 export interface PrescriptionItemInput {
   medicationName: string;
@@ -13,10 +14,10 @@ export interface PrescriptionItemInput {
 
 /**
  * Doctor submits post-visit notes + prescription. Moves the booking to
- * COMPLETED and enqueues the post-visit AI summary as an outbox event in
- * the same transaction — same "domain write and outbox insert together"
- * rule as booking confirmation (CLAUDE.md §3). Medication-reminder
- * scheduling from these items happens in Phase 7.
+ * COMPLETED and, in the same transaction: enqueues the post-visit AI
+ * summary and every medication reminder for every item — same "domain
+ * write and outbox insert together" rule as booking confirmation
+ * (CLAUDE.md §3).
  */
 export async function completeVisit(
   doctorUserId: string,
@@ -62,7 +63,17 @@ export async function completeVisit(
       },
     });
 
-    logger.info("visit completed", { correlationId, bookingId: booking.id, prescriptionId: prescription.id });
+    const reminderRows = prescription.items.flatMap((item) => computeReminderRows(item, correlationId));
+    if (reminderRows.length > 0) {
+      await tx.outboxEvent.createMany({ data: reminderRows });
+    }
+
+    logger.info("visit completed", {
+      correlationId,
+      bookingId: booking.id,
+      prescriptionId: prescription.id,
+      medicationReminders: reminderRows.length,
+    });
     return prescription;
   });
 }

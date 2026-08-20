@@ -22,7 +22,7 @@ was built against and [`PLAN.md`](./PLAN.md) for the build order.
 - [x] Phase 4 — LLM layer (pre-visit / post-visit, fallback, circuit breaker)
 - [x] Phase 5 — Doctor leave conflict flow
 - [x] Phase 6 — Google Calendar
-- [ ] Phase 7 — Medication reminders
+- [x] Phase 7 — Medication reminders
 - [ ] Phase 8 — Frontend (three portals)
 - [ ] Phase 9 — Deploy + final docs
 
@@ -508,6 +508,26 @@ close this gap; noted under [§ What I'd do differently](#).
   UI (Phase 8) would show a "reconnect your calendar" state for a `BROKEN`
   account; not yet built.
 
+## Medication reminders
+
+Generated once, at the moment a doctor saves a prescription
+(`completeVisit` in `src/services/visit.ts`) — not a cron that re-derives
+the schedule on every tick (CLAUDE.md §3). One `MEDICATION_REMINDER` outbox
+row per dose window: a 3×/day, 5-day item produces exactly 15 rows, each
+`nextAttemptAt` set to its own due time (`src/services/medication.ts`).
+Doses are spread evenly across an 08:00–22:00 clinic-local window (a single
+daily dose gets 09:00 rather than sitting at the window edge), converted to
+UTC the same DST-safe way slot times are. Dispatched by the same outbox
+worker as everything else — proven with a mocked email provider that a due
+reminder actually sends, addressed to the patient, with the medication name
+in the subject (`tests/medication.test.ts`).
+
+The patient can view (`GET /api/prescription-items/:id/reminders`) and stop
+(`POST .../reminders/stop`) their own schedule — stopping cancels every
+not-yet-sent reminder for that medication and leaves already-sent ones as a
+record. Both routes verify the caller owns the prescription (`NOT_FOUND` for
+anyone else's, not `FORBIDDEN` — see [§ API design](#api) on 403 vs 404).
+
 ## API
 
 Documented as each phase adds routes.
@@ -525,6 +545,8 @@ Documented as each phase adds routes.
 | `GET` | `/api/calendar/oauth/start` | any signed-in user | Redirects to Google's consent screen |
 | `GET` | `/api/calendar/oauth/callback` | any signed-in user | Exchanges code, stores encrypted refresh token |
 | `POST` | `/api/calendar/disconnect` | any signed-in user | Removes the caller's connected Google account |
+| `GET` | `/api/prescription-items/:id/reminders` | PATIENT (owner only) | List a medication's reminder schedule |
+| `POST` | `/api/prescription-items/:id/reminders/stop` | PATIENT (owner only) | Cancels remaining (not-yet-sent) reminders |
 | `POST` | `/api/jobs/tick` | `Authorization: Bearer $CRON_SECRET` | Reaps expired holds, schedules reminders, drains the outbox |
 | `GET` | `/api/admin/outbox?status=` | ADMIN | List outbox events (dead-letter view) |
 | `POST` | `/api/admin/outbox/:id/retry` | ADMIN | Manually retry a `FAILED` event |

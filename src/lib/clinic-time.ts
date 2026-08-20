@@ -67,3 +67,10 @@ export function localMinuteOfDay(date: Date): number {
   const zoned = toZonedTime(date, clinicTimeZone());
   return zoned.getHours() * 60 + zoned.getMinutes();
 }
+
+/** Adds `days` to a calendar date string, staying in plain calendar-date arithmetic (no timezone involved). */
+export function addDaysToDateString(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return toDateOnly(d);
+}
