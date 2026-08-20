@@ -18,7 +18,7 @@ was built against and [`PLAN.md`](./PLAN.md) for the build order.
 - [x] Phase 1 — Schema, migrations, DB-level constraints, seed data
 - [x] Phase 2 — Availability + booking core (slot hold, idempotency, the
       50-way concurrency proof)
-- [ ] Phase 3 — Outbox + email reliability
+- [x] Phase 3 — Outbox + email reliability
 - [ ] Phase 4 — LLM layer (pre-visit / post-visit, fallback, circuit breaker)
 - [ ] Phase 5 — Doctor leave conflict flow
 - [ ] Phase 6 — Google Calendar
@@ -301,6 +301,47 @@ traffic, not that scenario. The correctness guarantee (the DB constraint)
 does not depend on this tuning; only how fast the 49 losers each hear "no"
 does.
 
+## Notification reliability — the transactional outbox
+
+Email is never sent inline in a request handler — that would lose the
+message on a crash and block the response on a third party's latency. The
+domain write and the outbox insert happen in the same DB transaction
+(`confirmBooking` in `src/services/booking.ts`), so a booking can never
+exist without its notification jobs queued, and vice versa. Proven live
+(real Ethereal SMTP, not mocked) with a booking confirm → both patient and
+doctor actually receive an email, and separately proven with a mocked dead
+SMTP host that the booking still succeeds and the outbox event retries with
+growing backoff before dead-lettering — see `tests/outbox.test.ts`.
+
+- **Worker** (`POST /api/jobs/tick`, cron-secret protected): claims due rows
+  with `SELECT ... FOR UPDATE SKIP LOCKED`, safe against two overlapping
+  cron runs claiming the same row. Also reclaims rows stuck in `PROCESSING`
+  for 5+ minutes (a crashed worker mid-dispatch), reaps expired slot holds,
+  and schedules `BOOKING_REMINDER` rows ~24h before each confirmed
+  appointment.
+- **Backoff**: 1m → 5m → 25m → 2h → 12h, ±20% jitter
+  (`backoffDelayMs` in `src/services/outbox.ts`).
+- **Dead-letter**: after 5 failed attempts, status `FAILED`. Listed for the
+  admin dashboard by `GET /api/admin/outbox?status=FAILED`; a human retries
+  one with `POST /api/admin/outbox/:id/retry` (resets attempts — a manual
+  retry is a deliberate override, not a continuation of the automatic
+  backoff). The actual dashboard page lands in Phase 8; the API is real now.
+- **Idempotent dispatch**: the Resend provider is called with an
+  `idempotencyKey` derived from the outbox event + recipient, so a
+  crash-recovery reclaim of a `PROCESSING` row can't double-send through
+  Resend. Ethereal (local/demo) has no such server-side dedup — a
+  crash between "email sent" and "row marked SENT" can duplicate a demo
+  email; documented as an accepted limitation of the throwaway sandbox
+  provider, not of the outbox pattern itself.
+- Email provider is swappable behind one interface
+  (`src/lib/email/types.ts`): `EtherealEmailProvider` (default, zero setup —
+  auto-provisions a throwaway inbox, logs a preview URL per send) or
+  `ResendEmailProvider` (`EMAIL_PROVIDER=resend` + `RESEND_API_KEY`).
+- Types not yet wired to a handler (`CALENDAR_*`, `AI_*_GENERATION`) are
+  deliberately left unclaimed by the worker rather than faked — better
+  PENDING-forever-until-its-phase-lands than silently marked SENT for a
+  side effect that never ran.
+
 ## API
 
 Documented as each phase adds routes.
@@ -313,7 +354,9 @@ Documented as each phase adds routes.
 | `GET` | `/api/doctors/:id/availability?date=YYYY-MM-DD` | any signed-in user | Computed open slots |
 | `POST` | `/api/slots/hold` | PATIENT | `{ doctorProfileId, startsAt }` → `{ holdToken, holdExpiresAt, ... }`, `409 SLOT_TAKEN` on conflict |
 | `POST` | `/api/appointments` | PATIENT | `{ holdToken, symptomText }` + optional `Idempotency-Key` header → confirms a hold |
-| `POST` | `/api/jobs/tick` | `Authorization: Bearer $CRON_SECRET` | Reaps expired holds (outbox draining lands in Phase 3) |
+| `POST` | `/api/jobs/tick` | `Authorization: Bearer $CRON_SECRET` | Reaps expired holds, schedules reminders, drains the outbox |
+| `GET` | `/api/admin/outbox?status=` | ADMIN | List outbox events (dead-letter view) |
+| `POST` | `/api/admin/outbox/:id/retry` | ADMIN | Manually retry a `FAILED` event |
 
 Every route uses one error envelope: `{ error: { code, message, details? } }`
 (`src/lib/errors.ts`) with stable codes (`SLOT_TAKEN`, `HOLD_EXPIRED`,
