@@ -1,0 +1,10 @@
+DELETE 1
+INSERT 0 1
+ERROR:  duplicate key value violates unique constraint "booking_doctor_active_slot_uidx"
+DETAIL:  Key ("doctorProfileId", "startsAt")=(ab1a018d-5e0d-4c0e-9762-2ae9b524953d, 2026-12-01 09:00:00) already exists.
+ rows_for_this_slot 
+--------------------
+                  1
+(1 row)
+
+DELETE 1
