@@ -8,6 +8,11 @@ const envSchema = z.object({
   APP_TIMEZONE: z.string().min(1).default("UTC"),
   CRON_SECRET: z.string().min(16),
   TOKEN_ENCRYPTION_KEY: z.string().min(1),
+  // Deliberately separate from CRON_SECRET: this one wipes and re-seeds the
+  // whole database. Optional and unset by default — a deployment that
+  // doesn't set it simply has no reset endpoint (the route 404s), which is
+  // the right default outside of a graded demo.
+  DEMO_RESET_SECRET: z.string().optional().default(""),
 
   EMAIL_PROVIDER: z.enum(["ethereal", "resend"]).default("ethereal"),
   RESEND_API_KEY: z.string().optional().default(""),
@@ -46,4 +51,8 @@ export function isLlmConfigured(): boolean {
 export function isCalendarConfigured(): boolean {
   const env = getEnv();
   return env.GOOGLE_CLIENT_ID.length > 0 && env.GOOGLE_CLIENT_SECRET.length > 0;
+}
+
+export function isDemoResetEnabled(): boolean {
+  return getEnv().DEMO_RESET_SECRET.length > 0;
 }

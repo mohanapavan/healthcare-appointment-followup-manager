@@ -88,6 +88,21 @@ npm run concurrency-test    # the 50-way double-booking proof (Phase 2)
 npm run authorization-proof # a patient hitting every doctor/admin-only route -> 403 (needs `npm run dev` running)
 ```
 
+### Demo reset
+
+`POST /api/demo/reset` wipes every row the app owns and re-seeds the
+standard demo data — the deliverable's "hosted URL with a demo-reset
+endpoint so the grader can re-run the flow." Disabled by default (the route
+404s) until `DEMO_RESET_SECRET` is set, and deliberately a *different*
+secret from `CRON_SECRET` — this one is strictly more destructive, and a
+non-demo deployment shouldn't ship a public "wipe the database" button by
+default.
+
+```bash
+curl -X POST https://<your-deployment>/api/demo/reset \
+  -H "Authorization: Bearer $DEMO_RESET_SECRET"
+```
+
 ## Database schema
 
 ```mermaid
@@ -593,6 +608,7 @@ Documented as each phase adds routes.
 | `GET` | `/api/prescription-items/:id/reminders` | PATIENT (owner only) | List a medication's reminder schedule |
 | `POST` | `/api/prescription-items/:id/reminders/stop` | PATIENT (owner only) | Cancels remaining (not-yet-sent) reminders |
 | `POST` | `/api/jobs/tick` | `Authorization: Bearer $CRON_SECRET` | Reaps expired holds, schedules reminders, drains the outbox |
+| `POST` | `/api/demo/reset` | `Authorization: Bearer $DEMO_RESET_SECRET` | Wipes + re-seeds all data; `404` unless `DEMO_RESET_SECRET` is set |
 | `GET` | `/api/admin/outbox?status=` | ADMIN | List outbox events (dead-letter view) |
 | `POST` | `/api/admin/outbox/:id/retry` | ADMIN | Manually retry a `FAILED` event |
 | `GET` | `/api/doctors/:id/leave` | ADMIN or owning DOCTOR | List leave ranges |
