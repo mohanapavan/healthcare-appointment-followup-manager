@@ -5,11 +5,16 @@ symptom-aware booking with a hard double-booking guarantee, AI pre-visit and
 post-visit summaries with deterministic fallback, doctor leave with a
 conflict-resolution flow, and email + Google Calendar sync driven by a
 transactional outbox. See [`CLAUDE.md`](./CLAUDE.md) for the full spec this
-was built against and [`PLAN.md`](./PLAN.md) for the build order.
+was built against, [`PLAN.md`](./PLAN.md) for the build order,
+[`DESIGN.md`](./DESIGN.md) for the frontend's design tokens and rationale,
+and [`WRITEUP.md`](./WRITEUP.md) for the 800-word system design write-up
+(double-booking prevention, leave conflict handling, the slot hold
+mechanism, notification failure handling, and what I'd do differently).
 
-> **Status:** in progress. This README is updated at the end of every phase
-> in `PLAN.md`, so it always reflects what's actually implemented, not the
-> eventual target. See the checklist below.
+> **Status:** feature-complete against `PLAN.md`; not yet deployed to a
+> public URL (needs a Vercel/Render account — see § Deployment). This
+> README is updated at the end of every phase, so it always reflects what's
+> actually implemented, not the eventual target. See the checklist below.
 
 ## Build status
 
@@ -24,7 +29,9 @@ was built against and [`PLAN.md`](./PLAN.md) for the build order.
 - [x] Phase 6 — Google Calendar
 - [x] Phase 7 — Medication reminders
 - [x] Phase 8 — Frontend (three portals)
-- [ ] Phase 9 — Deploy + final docs
+- [x] Phase 9 — Final docs (README, `WRITEUP.md`, ER diagram, prompts, demo
+      accounts, concurrency/authorization proofs). **Hosted URL not yet
+      live** — needs an account on Vercel or Render, see § Deployment.
 
 ## Quick start
 
@@ -498,7 +505,7 @@ create/update/delete, idempotent-against-retry via `CalendarLink`, and the
 provider (`tests/calendar-dispatch.test.ts`), which exercises the exact same
 code the real `GoogleCalendarProvider` runs, just with the actual Google API
 call substituted. A recorded demo with real credentials is the honest way to
-close this gap; noted under [§ What I'd do differently](#).
+close this gap; noted under [WRITEUP.md § What I'd do differently](./WRITEUP.md#what-id-do-differently-with-more-time-or-a-paid-tier).
 
 ### How it works
 
@@ -624,3 +631,46 @@ Every route uses one error envelope: `{ error: { code, message, details? } }`
 route → service → repository: business rules live in `src/services/*` and
 are unit-tested without HTTP (`tests/booking.test.ts`); route handlers only
 parse input (Zod), call a service, and map the result to a response.
+
+## Deployment
+
+Not yet deployed to a public URL from this environment — that step needs an
+account on the host (Vercel or Render), which isn't something to create on
+someone else's behalf. Everything short of clicking "deploy" is ready:
+
+### Vercel (recommended — zero-config for a Next.js app)
+
+1. Push this repo to GitHub, then [import it on Vercel](https://vercel.com/new).
+2. Add every variable from `.env.example` in Project Settings → Environment
+   Variables (a managed Postgres add-on — Vercel Postgres, or Neon/Supabase —
+   for `DATABASE_URL`; a second database, or a separate schema, for
+   `TEST_DATABASE_URL` if you want CI to run `npm test` there too).
+3. Deploy. `vercel.json` in this repo already configures a Vercel Cron Job
+   hitting `POST /api/jobs/tick` every minute — Vercel automatically sends
+   `Authorization: Bearer $CRON_SECRET` on cron-triggered requests when an
+   env var literally named `CRON_SECRET` is set, which is exactly what this
+   route expects.
+   **Tier caveat**: Vercel's Hobby (free) plan has historically capped cron
+   frequency below once-per-minute. If your account is limited, either
+   upgrade, or point an external scheduler (e.g. cron-job.org,
+   EasyCron) at `POST /api/jobs/tick` with the `Authorization` header set
+   yourself — the route doesn't care who calls it, only that the secret
+   matches. This exact free-tier tradeoff is discussed in
+   [`WRITEUP.md`](./WRITEUP.md).
+4. Run `npm run db:push` and `npm run seed` once against the production
+   `DATABASE_URL` (e.g. `vercel env pull` locally, then run both commands),
+   or trigger `POST /api/demo/reset` once `DEMO_RESET_SECRET` is set.
+
+### Render (alternative — real Cron Jobs, not HTTP-triggered)
+
+1. New Web Service from this repo; build command `npm ci && npm run build`,
+   start command `npm start`.
+2. New PostgreSQL instance (free tier) for `DATABASE_URL`.
+3. New Cron Job service running
+   `curl -X POST $APP_URL/api/jobs/tick -H "Authorization: Bearer $CRON_SECRET"`
+   on a 1-minute schedule.
+4. Same environment variables as above.
+
+Either way, `GET /api/health` is the smoke test once it's live, and
+`POST /api/demo/reset` (§ Demo reset, above) resets to the seeded state for
+a grader to re-run the flow from a clean slate.
