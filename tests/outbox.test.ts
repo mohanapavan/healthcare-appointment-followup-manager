@@ -67,10 +67,13 @@ describe("outbox reliability", () => {
     const observedDelaysMin: number[] = [];
     let event = created;
     for (let attempt = 0; attempt < 5; attempt++) {
-      // Force it due now instead of waiting out the real backoff delay.
+      // Force it due now instead of waiting out the real backoff delay. A
+      // large limit guarantees THIS row gets claimed even if other tests
+      // left older-but-still-due rows sitting in the shared queue — claim
+      // order is by nextAttemptAt, so a just-touched row sorts last.
       await prisma.outboxEvent.update({ where: { id: event.id }, data: { nextAttemptAt: new Date() } });
       const before = Date.now();
-      await drainOutbox();
+      await drainOutbox(500);
       event = await prisma.outboxEvent.findUniqueOrThrow({ where: { id: event.id } });
       if (event.status === "PENDING") {
         observedDelaysMin.push((event.nextAttemptAt.getTime() - before) / 60_000);

@@ -20,7 +20,7 @@ was built against and [`PLAN.md`](./PLAN.md) for the build order.
       50-way concurrency proof)
 - [x] Phase 3 — Outbox + email reliability
 - [x] Phase 4 — LLM layer (pre-visit / post-visit, fallback, circuit breaker)
-- [ ] Phase 5 — Doctor leave conflict flow
+- [x] Phase 5 — Doctor leave conflict flow
 - [ ] Phase 6 — Google Calendar
 - [ ] Phase 7 — Medication reminders
 - [ ] Phase 8 — Frontend (three portals)
@@ -412,6 +412,40 @@ strict-JSON + few-shot pattern. Full text of both prompts, including the
 validation-retry variant, is in `src/lib/llm/prompts.ts` — not duplicated
 here to avoid the two drifting out of sync.
 
+## Doctor leave — conflict resolution
+
+Marking leave is a conflict-resolution flow, not a delete (CLAUDE.md §2):
+
+1. `POST /api/doctors/:id/leave/preview` — dry-run, returns exactly which
+   `HELD`/`CONFIRMED` bookings the proposed range would affect (patient name,
+   time), with nothing written yet. The UI shows this before the admin/doctor
+   confirms (Phase 8).
+2. `POST /api/doctors/:id/leave` — one transaction: creates the `Leave` row,
+   moves every affected booking to `CANCELLED_BY_CLINIC` with a reason
+   (never a hard delete — the row and its history survive), and queues a
+   `BOOKING_CANCELLATION` + `CALENDAR_DELETE` outbox event per booking. An
+   `AuditLog` row records the action. A booking outside the range, or
+   already cancelled, is untouched.
+3. The cancellation email (same dispatcher as any other `BOOKING_CANCELLATION`
+   — nothing leave-specific about it) includes that patient's own appointment
+   details and the doctor's next three real available slots, computed live
+   at send time via `findNextAvailableSlots`.
+4. Overlapping leave ranges for the same doctor are rejected by the same
+   "DB constraint is the real guarantee" philosophy as double-booking — a
+   `btree_gist` exclusion constraint (`leave_no_overlap_excl`), not just an
+   application check. Verified empirically before writing the catch-and-map
+   code that a Postgres exclusion-constraint violation (SQLSTATE `23P01`)
+   comes back from Prisma as `PrismaClientUnknownRequestError`, not the
+   `P2002` shape a *unique*-index violation gets — different code path,
+   easy to get wrong by assuming it matches the booking-conflict handling.
+
+Proven both by `tests/leave.test.ts` (preview scoping, transactional
+cancel+outbox+audit-log, non-overlapping bookings survive, overlap
+rejection) and live against real Ethereal: booked three real slots, marked
+that day as leave, and all three patients (and the doctor) received an
+actual cancellation email with three real rebooking links — the PLAN.md
+Phase 5 check, run for real rather than asserted in the abstract.
+
 ## API
 
 Documented as each phase adds routes.
@@ -428,6 +462,10 @@ Documented as each phase adds routes.
 | `POST` | `/api/jobs/tick` | `Authorization: Bearer $CRON_SECRET` | Reaps expired holds, schedules reminders, drains the outbox |
 | `GET` | `/api/admin/outbox?status=` | ADMIN | List outbox events (dead-letter view) |
 | `POST` | `/api/admin/outbox/:id/retry` | ADMIN | Manually retry a `FAILED` event |
+| `GET` | `/api/doctors/:id/leave` | ADMIN or owning DOCTOR | List leave ranges |
+| `POST` | `/api/doctors/:id/leave/preview` | ADMIN or owning DOCTOR | `{ startDate, endDate }` → affected bookings, no writes |
+| `POST` | `/api/doctors/:id/leave` | ADMIN or owning DOCTOR | Creates leave + cancels affected bookings, `409 LEAVE_OVERLAP` on conflict |
+| `DELETE` | `/api/doctors/:id/leave/:leaveId` | ADMIN or owning DOCTOR | Removes a leave range |
 
 Every route uses one error envelope: `{ error: { code, message, details? } }`
 (`src/lib/errors.ts`) with stable codes (`SLOT_TAKEN`, `HOLD_EXPIRED`,

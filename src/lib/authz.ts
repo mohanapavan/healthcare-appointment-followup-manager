@@ -1,6 +1,7 @@
 import type { Role } from "@prisma/client";
 import { auth } from "@/auth";
 import { AppError } from "./errors";
+import { prisma } from "./prisma";
 
 export interface AuthUser {
   id: string;
@@ -34,4 +35,15 @@ export async function requireRole(...roles: Role[]): Promise<AuthUser> {
     throw new AppError("FORBIDDEN", "You do not have access to this resource");
   }
   return user;
+}
+
+/** Admin manages every doctor's schedule; a doctor manages only their own. */
+export async function requireAdminOrOwningDoctor(doctorProfileId: string): Promise<AuthUser> {
+  const user = await requireAuth();
+  if (user.role === "ADMIN") return user;
+  if (user.role === "DOCTOR") {
+    const profile = await prisma.doctorProfile.findUnique({ where: { id: doctorProfileId } });
+    if (profile?.userId === user.id) return user;
+  }
+  throw new AppError("FORBIDDEN", "You do not have access to this doctor's schedule");
 }

@@ -36,10 +36,27 @@ export function createPatient() {
   return createUser("PATIENT", "Patient");
 }
 
-/** Deletes everything a test created, given the ids it tracked. */
+/**
+ * Deletes everything a test created, given the ids it tracked — including
+ * any outbox rows those bookings queued. Tests share one real Postgres test
+ * DB and drainOutbox() legitimately claims *any* due row (that's correct
+ * production behaviour), so a test that creates outbox rows and never
+ * drains them pollutes the shared queue for a later test/file that expects
+ * to claim its own row promptly (ORDER BY nextAttemptAt means older
+ * leftover rows crowd out a freshly-touched one).
+ */
 export async function cleanup(opts: { doctorProfileIds?: string[]; userIds?: string[] }) {
   const { doctorProfileIds = [], userIds = [] } = opts;
   if (doctorProfileIds.length) {
+    const bookings = await prisma.booking.findMany({
+      where: { doctorProfileId: { in: doctorProfileIds } },
+      select: { id: true },
+    });
+    if (bookings.length) {
+      await prisma.outboxEvent.deleteMany({
+        where: { OR: bookings.map((b) => ({ payload: { path: ["bookingId"], equals: b.id } })) },
+      });
+    }
     await prisma.booking.deleteMany({ where: { doctorProfileId: { in: doctorProfileIds } } });
     await prisma.leave.deleteMany({ where: { doctorProfileId: { in: doctorProfileIds } } });
     await prisma.workingHours.deleteMany({ where: { doctorProfileId: { in: doctorProfileIds } } });
