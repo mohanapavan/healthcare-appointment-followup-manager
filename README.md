@@ -21,7 +21,7 @@ was built against and [`PLAN.md`](./PLAN.md) for the build order.
 - [x] Phase 3 — Outbox + email reliability
 - [x] Phase 4 — LLM layer (pre-visit / post-visit, fallback, circuit breaker)
 - [x] Phase 5 — Doctor leave conflict flow
-- [ ] Phase 6 — Google Calendar
+- [x] Phase 6 — Google Calendar
 - [ ] Phase 7 — Medication reminders
 - [ ] Phase 8 — Frontend (three portals)
 - [ ] Phase 9 — Deploy + final docs
@@ -446,6 +446,68 @@ that day as leave, and all three patients (and the doctor) received an
 actual cancellation email with three real rebooking links — the PLAN.md
 Phase 5 check, run for real rather than asserted in the abstract.
 
+## Google Calendar
+
+Opt-in per user, never blocking a booking either way. Both `GOOGLE_CLIENT_ID`
+and `GOOGLE_CLIENT_SECRET` unset (the default) is a fully supported state —
+`isCalendarConfigured()` gates the connect flow, and every `CALENDAR_*`
+outbox dispatcher treats "no connected account" as nothing-to-do, not an
+error.
+
+### Setup (to test the real OAuth flow — optional)
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a
+   project, enable the **Google Calendar API**, and create an **OAuth 2.0
+   Client ID** of type "Web application".
+2. Add `http://localhost:3000/api/calendar/oauth/callback` as an authorized
+   redirect URI (or your deployed URL's equivalent).
+3. While the app is in Google's "Testing" publishing status (the default,
+   and fine for this brief — no verification needed), add the Google
+   account(s) you'll test with under **Audience → Test users**.
+4. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI`
+   in `.env`.
+5. Visit `/api/calendar/oauth/start` while signed in — redirects to Google's
+   consent screen (`access_type=offline`, `prompt=consent` so a refresh
+   token is issued even on a repeat connect) and back to
+   `/api/calendar/oauth/callback`, which exchanges the code and stores the
+   encrypted refresh token.
+
+This was **not** verified against a live Google account in this
+environment — I don't have a Google Cloud project's credentials to test
+with, and creating one requires the developer's own account. What *is*
+proven without one: token encryption round-trips correctly
+(`tests/crypto.test.ts`), and the full dispatch logic — skip-if-not-connected,
+create/update/delete, idempotent-against-retry via `CalendarLink`, and the
+`invalid_grant` → mark-broken-and-continue path — against a mocked Google
+provider (`tests/calendar-dispatch.test.ts`), which exercises the exact same
+code the real `GoogleCalendarProvider` runs, just with the actual Google API
+call substituted. A recorded demo with real credentials is the honest way to
+close this gap; noted under [§ What I'd do differently](#).
+
+### How it works
+
+- Refresh tokens are AES-256-GCM encrypted at rest
+  (`GoogleCalendarAccount.encryptedRefreshToken`, `src/lib/crypto.ts`) with a
+  random IV per encryption and an auth tag checked on decrypt.
+- `CALENDAR_CREATE`/`UPDATE`/`DELETE` are outbox events, dispatched from
+  `POST /api/jobs/tick` exactly like email — calendar failure is "an outbox
+  event like any other" (CLAUDE.md §7) and never rolls back a booking.
+- Each side (patient, doctor) has its own `CalendarLink` row per booking, so
+  syncing is per-user: a patient who never connected their calendar doesn't
+  block the doctor's event from being created, and vice versa.
+- **Idempotent against retry**: before creating, the dispatcher checks for
+  an existing `CalendarLink` with a set `externalEventId` and skips if
+  found — the Google Calendar REST API has no client-supplied insert
+  idempotency key of its own to lean on, so this is enforced at the
+  application layer instead. Proven by a test that dispatches the same
+  `CALENDAR_CREATE` event twice and asserts the provider's create call only
+  actually fired once.
+- **Revoked/expired consent** (`invalid_grant`): caught, the account is
+  marked `BROKEN`, and the dispatch completes successfully (not a
+  retry-worthy failure) — the appointment stays valid either way. The
+  UI (Phase 8) would show a "reconnect your calendar" state for a `BROKEN`
+  account; not yet built.
+
 ## API
 
 Documented as each phase adds routes.
@@ -459,6 +521,10 @@ Documented as each phase adds routes.
 | `POST` | `/api/slots/hold` | PATIENT | `{ doctorProfileId, startsAt }` → `{ holdToken, holdExpiresAt, ... }`, `409 SLOT_TAKEN` on conflict |
 | `POST` | `/api/appointments` | PATIENT | `{ holdToken, symptomText }` + optional `Idempotency-Key` header → confirms a hold |
 | `POST` | `/api/appointments/:id/complete` | DOCTOR (owner only) | `{ clinicalNotes, prescriptionItems[] }` → CONFIRMED → COMPLETED, queues post-visit AI generation |
+| `POST` | `/api/appointments/:id/cancel` | PATIENT (owner only) | `{ reason? }` → CANCELLED_BY_PATIENT, queues cancellation email + calendar delete |
+| `GET` | `/api/calendar/oauth/start` | any signed-in user | Redirects to Google's consent screen |
+| `GET` | `/api/calendar/oauth/callback` | any signed-in user | Exchanges code, stores encrypted refresh token |
+| `POST` | `/api/calendar/disconnect` | any signed-in user | Removes the caller's connected Google account |
 | `POST` | `/api/jobs/tick` | `Authorization: Bearer $CRON_SECRET` | Reaps expired holds, schedules reminders, drains the outbox |
 | `GET` | `/api/admin/outbox?status=` | ADMIN | List outbox events (dead-letter view) |
 | `POST` | `/api/admin/outbox/:id/retry` | ADMIN | Manually retry a `FAILED` event |

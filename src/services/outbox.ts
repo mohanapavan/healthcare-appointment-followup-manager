@@ -11,14 +11,13 @@ import {
 } from "@/lib/email/templates";
 import { findNextAvailableSlots } from "./availability";
 import { generatePostVisitSummary, generatePreVisitSummary } from "@/lib/llm";
+import { getCalendarProvider, InvalidGrantError } from "@/lib/calendar";
+import { getActiveRefreshToken, markAccountBroken } from "./calendar-account";
 
 // 1m, 5m, 25m, 2h, 12h — after the 5th failed attempt, dead-letter.
 const BACKOFF_MINUTES = [1, 5, 25, 120, 720];
 const MAX_ATTEMPTS = 5;
-// Types with a real dispatcher below. Anything else (CALENDAR_*) is
-// intentionally left unclaimed until its own phase lands — better to leave
-// it PENDING than to mark it SENT/FAILED for a side effect that never
-// actually ran.
+// Types with a real dispatcher below.
 const HANDLED_TYPES = [
   "BOOKING_CONFIRMATION",
   "BOOKING_REMINDER",
@@ -26,6 +25,9 @@ const HANDLED_TYPES = [
   "MEDICATION_REMINDER",
   "AI_PRE_VISIT_GENERATION",
   "AI_POST_VISIT_GENERATION",
+  "CALENDAR_CREATE",
+  "CALENDAR_UPDATE",
+  "CALENDAR_DELETE",
 ];
 // A row stuck in PROCESSING for more than 5 minutes is assumed to be from a
 // worker that crashed mid-dispatch, and is eligible to be reclaimed — see
@@ -242,6 +244,124 @@ async function dispatchAiPostVisitGeneration(payload: {
   return `prescription=${prescription.id}`;
 }
 
+/**
+ * Calendar sync is opt-in per user and never blocks a booking either way:
+ * a party with no connected Google account is silently skipped (not an
+ * error), and a revoked/expired refresh token (CLAUDE.md §7) marks the
+ * account BROKEN and moves on rather than retrying forever or failing the
+ * outbox event. Idempotent against retries via CalendarLink — a create
+ * that already has an externalEventId is not repeated (Google's REST API
+ * has no client-supplied insert idempotency key of its own to lean on).
+ */
+async function dispatchCalendarCreate(payload: BookingPayload): Promise<string> {
+  const booking = await loadBookingContext(payload.bookingId);
+  const provider = getCalendarProvider();
+  const owners = [booking.patientId, booking.doctorProfile.userId];
+  const results: string[] = [];
+
+  for (const ownerUserId of owners) {
+    const existing = await prisma.calendarLink.findUnique({
+      where: { bookingId_ownerUserId: { bookingId: booking.id, ownerUserId } },
+    });
+    if (existing?.externalEventId) {
+      results.push(`${ownerUserId}:already-created`);
+      continue;
+    }
+
+    const refreshToken = await getActiveRefreshToken(ownerUserId);
+    if (!refreshToken) {
+      results.push(`${ownerUserId}:not-connected`);
+      continue;
+    }
+
+    try {
+      const { externalEventId } = await provider.createEvent(refreshToken, {
+        summary: `Appointment: ${booking.patient.name} with Dr. ${booking.doctorProfile.user.name}`,
+        description: `${booking.doctorProfile.specialisation} appointment`,
+        startsAt: booking.startsAt,
+        endsAt: booking.endsAt,
+        attendeeEmails: [booking.patient.email, booking.doctorProfile.user.email],
+      });
+      await prisma.calendarLink.upsert({
+        where: { bookingId_ownerUserId: { bookingId: booking.id, ownerUserId } },
+        update: { externalEventId, status: "ACTIVE" },
+        create: { bookingId: booking.id, ownerUserId, externalEventId, status: "ACTIVE" },
+      });
+      results.push(`${ownerUserId}:${externalEventId}`);
+    } catch (err) {
+      if (err instanceof InvalidGrantError) {
+        await markAccountBroken(ownerUserId);
+        results.push(`${ownerUserId}:broken`);
+        continue;
+      }
+      throw err; // a real failure — let the outbox retry/dead-letter it
+    }
+  }
+  return results.join(",");
+}
+
+async function dispatchCalendarUpdate(payload: BookingPayload): Promise<string> {
+  const booking = await loadBookingContext(payload.bookingId);
+  const provider = getCalendarProvider();
+  const links = await prisma.calendarLink.findMany({ where: { bookingId: booking.id, status: "ACTIVE" } });
+  const results: string[] = [];
+
+  for (const link of links) {
+    if (!link.externalEventId) continue;
+    const refreshToken = await getActiveRefreshToken(link.ownerUserId);
+    if (!refreshToken) {
+      results.push(`${link.ownerUserId}:not-connected`);
+      continue;
+    }
+    try {
+      await provider.updateEvent(refreshToken, link.externalEventId, {
+        summary: `Appointment: ${booking.patient.name} with Dr. ${booking.doctorProfile.user.name}`,
+        description: `${booking.doctorProfile.specialisation} appointment`,
+        startsAt: booking.startsAt,
+        endsAt: booking.endsAt,
+        attendeeEmails: [booking.patient.email, booking.doctorProfile.user.email],
+      });
+      results.push(`${link.ownerUserId}:updated`);
+    } catch (err) {
+      if (err instanceof InvalidGrantError) {
+        await markAccountBroken(link.ownerUserId);
+        results.push(`${link.ownerUserId}:broken`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  return results.join(",") || "no-links";
+}
+
+async function dispatchCalendarDelete(payload: BookingPayload): Promise<string> {
+  const links = await prisma.calendarLink.findMany({ where: { bookingId: payload.bookingId, status: "ACTIVE" } });
+  const provider = getCalendarProvider();
+  const results: string[] = [];
+
+  for (const link of links) {
+    if (!link.externalEventId) continue;
+    const refreshToken = await getActiveRefreshToken(link.ownerUserId);
+    if (!refreshToken) {
+      results.push(`${link.ownerUserId}:not-connected`);
+      continue;
+    }
+    try {
+      await provider.deleteEvent(refreshToken, link.externalEventId);
+      await prisma.calendarLink.delete({ where: { id: link.id } });
+      results.push(`${link.ownerUserId}:deleted`);
+    } catch (err) {
+      if (err instanceof InvalidGrantError) {
+        await markAccountBroken(link.ownerUserId);
+        results.push(`${link.ownerUserId}:broken`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  return results.join(",") || "no-links";
+}
+
 async function dispatch(event: OutboxEvent): Promise<string> {
   const payload = event.payload as Record<string, unknown>;
   switch (event.type) {
@@ -257,6 +377,12 @@ async function dispatch(event: OutboxEvent): Promise<string> {
       return dispatchAiPreVisitGeneration(payload as unknown as BookingPayload);
     case "AI_POST_VISIT_GENERATION":
       return dispatchAiPostVisitGeneration(payload as unknown as { prescriptionId: string; correlationId?: string });
+    case "CALENDAR_CREATE":
+      return dispatchCalendarCreate(payload as unknown as BookingPayload);
+    case "CALENDAR_UPDATE":
+      return dispatchCalendarUpdate(payload as unknown as BookingPayload);
+    case "CALENDAR_DELETE":
+      return dispatchCalendarDelete(payload as unknown as BookingPayload);
     default:
       throw new Error(`No dispatcher for outbox event type ${event.type}`);
   }

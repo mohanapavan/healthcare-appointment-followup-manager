@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
 import { getAvailability } from "@/services/availability";
-import { confirmBooking, holdSlot } from "@/services/booking";
+import { cancelBooking, confirmBooking, holdSlot } from "@/services/booking";
 import { createDoctor, createPatient, setWorkingHours, cleanup } from "./helpers";
 
 if (!process.env.DATABASE_URL?.includes("hospital_test")) {
@@ -177,5 +177,45 @@ describe("booking service", () => {
     await expect(
       confirmBooking(patient.id, held.holdToken!, "n/a", undefined)
     ).rejects.toMatchObject({ code: "ILLEGAL_STATE_TRANSITION" });
+  });
+
+  it("lets a patient cancel their own CONFIRMED booking, queuing cancellation email + calendar delete", async () => {
+    const doctor = await setupDoctor();
+    const patient = await createPatient();
+    userIds.push(patient.id);
+
+    const held = await holdSlot(patient.id, doctor.id, slotAt(15));
+    const { booking } = await confirmBooking(patient.id, held.holdToken!, "checkup", undefined);
+
+    const cancelled = await cancelBooking(patient.id, booking.id, "can't make it");
+    expect(cancelled.status).toBe("CANCELLED_BY_PATIENT");
+    expect(cancelled.cancelReason).toBe("can't make it");
+
+    const events = await prisma.outboxEvent.findMany({
+      where: { payload: { path: ["bookingId"], equals: booking.id }, type: { in: ["BOOKING_CANCELLATION", "CALENDAR_DELETE"] } },
+    });
+    expect(events.map((e) => e.type).sort()).toEqual(["BOOKING_CANCELLATION", "CALENDAR_DELETE"]);
+
+    const freedSlot = await getAvailability(doctor.id, FUTURE_DATE);
+    expect(freedSlot.some((s) => s.startsAt.getTime() === slotAt(15).getTime())).toBe(true);
+  });
+
+  it("refuses to cancel another patient's booking, and refuses to cancel an already-cancelled one", async () => {
+    const doctor = await setupDoctor();
+    const owner = await createPatient();
+    const intruder = await createPatient();
+    userIds.push(owner.id, intruder.id);
+
+    const held = await holdSlot(owner.id, doctor.id, slotAt(16));
+    const { booking } = await confirmBooking(owner.id, held.holdToken!, "checkup", undefined);
+
+    await expect(cancelBooking(intruder.id, booking.id, "not mine")).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+
+    await cancelBooking(owner.id, booking.id, "first cancel");
+    await expect(cancelBooking(owner.id, booking.id, "second cancel")).rejects.toMatchObject({
+      code: "ILLEGAL_STATE_TRANSITION",
+    });
   });
 });

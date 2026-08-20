@@ -207,3 +207,51 @@ export async function confirmBooking(
     return { booking: updated, replay: false };
   });
 }
+
+/**
+ * Patient-initiated cancel. Same rule as every other status change: never a
+ * hard delete, and the domain write + its outbox events (email, calendar
+ * delete) commit together (CLAUDE.md §3). Reuses the exact same
+ * BOOKING_CANCELLATION/CALENDAR_DELETE dispatchers the leave-conflict flow
+ * uses — cancellation has one code path regardless of who initiated it.
+ */
+export async function cancelBooking(
+  patientId: string,
+  bookingId: string,
+  reason: string,
+  correlationId?: string
+): Promise<Booking> {
+  return prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({ where: { id: bookingId } });
+    if (!booking || booking.patientId !== patientId) {
+      throw new AppError("NOT_FOUND", "Appointment not found");
+    }
+    if (booking.status !== "HELD" && booking.status !== "CONFIRMED") {
+      throw new AppError(
+        "ILLEGAL_STATE_TRANSITION",
+        `Cannot cancel a booking in status ${booking.status}.`
+      );
+    }
+
+    const wasConfirmed = booking.status === "CONFIRMED";
+    const updated = await tx.booking.update({
+      where: { id: booking.id },
+      data: { status: "CANCELLED_BY_PATIENT", cancelReason: reason, cancelledAt: new Date() },
+    });
+
+    // A HELD-only booking never had confirmation email/calendar events
+    // queued in the first place — nothing to notify or delete.
+    if (wasConfirmed) {
+      const payloadBase = { bookingId: updated.id, reason, correlationId };
+      await tx.outboxEvent.createMany({
+        data: [
+          { type: "BOOKING_CANCELLATION", payload: payloadBase, correlationId },
+          { type: "CALENDAR_DELETE", payload: payloadBase, correlationId },
+        ],
+      });
+    }
+
+    logger.info("booking cancelled by patient", { correlationId, bookingId: updated.id });
+    return updated;
+  });
+}
