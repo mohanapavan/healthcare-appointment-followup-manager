@@ -7,6 +7,7 @@
  */
 import { PrismaClient, Role } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
+import { slotStartUtc, toDateOnly } from "../src/lib/clinic-time";
 
 const prisma = new PrismaClient();
 
@@ -34,10 +35,10 @@ async function main() {
 
   console.log("Seeding doctors...");
   const doctorDefs = [
-    { email: "dr.nair@clinic.test", name: "Dr. Meera Nair", specialisation: "Cardiology" },
-    { email: "dr.kapoor@clinic.test", name: "Dr. Rohan Kapoor", specialisation: "Dermatology" },
-    { email: "dr.khan@clinic.test", name: "Dr. Ayesha Khan", specialisation: "Pediatrics" },
-    { email: "dr.rao@clinic.test", name: "Dr. Vikram Rao", specialisation: "Orthopedics" },
+    { email: "dr.nair@clinic.test", name: "Meera Nair", specialisation: "Cardiology" },
+    { email: "dr.kapoor@clinic.test", name: "Rohan Kapoor", specialisation: "Dermatology" },
+    { email: "dr.khan@clinic.test", name: "Ayesha Khan", specialisation: "Pediatrics" },
+    { email: "dr.rao@clinic.test", name: "Vikram Rao", specialisation: "Orthopedics" },
   ];
 
   const doctorProfiles = [];
@@ -128,8 +129,10 @@ async function main() {
   ];
 
   for (const sample of sampleNotes) {
-    const startsAt = addMinutes(addDays(new Date(), -sample.daysAgo), -new Date().getMinutes());
-    startsAt.setHours(10, 0, 0, 0);
+    // 10:00 in the clinic's own timezone (APP_TIMEZONE), not this machine's
+    // local time — matters for demo data to read correctly regardless of
+    // where `npm run seed` happens to be run from.
+    const startsAt = slotStartUtc(toDateOnly(addDays(new Date(), -sample.daysAgo)), 10 * 60);
     const endsAt = addMinutes(startsAt, 30);
 
     const existing = await prisma.booking.findFirst({

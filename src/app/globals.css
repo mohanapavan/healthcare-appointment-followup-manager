@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
+/* Daylight only — see DESIGN.md. No dark-mode variant, deliberately: a
+   clinical tool is used in a lit room, and committing to one look avoids
+   redefining every token twice for a mode this brief doesn't want. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f3f4f1;
+  --paper-raised: #fbfbf9;
+  --ink: #1e2a38;
+  --ink-muted: #5b6675;
+  --line: #d8d3c7;
+  --clinical: #2f5d8a;
+  --clinical-dark: #234a70;
+  --urgent: #b3423e;
+  --urgent-bg: #f6e4e2;
+  --caution: #b5792a;
+  --caution-bg: #f5e9d6;
+  --confirmed: #3f7856;
+  --confirmed-bg: #e2ede6;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-clinical: var(--clinical);
+  --color-clinical-dark: var(--clinical-dark);
+  --color-urgent: var(--urgent);
+  --color-urgent-bg: var(--urgent-bg);
+  --color-caution: var(--caution);
+  --color-caution-bg: var(--caution-bg);
+  --color-confirmed: var(--confirmed);
+  --color-confirmed-bg: var(--confirmed-bg);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-tabular: var(--font-tabular);
+
+  --spacing-rail-hour: 4rem; /* one hour on the day rail = 64px, see DESIGN.md */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-tabular {
+  font-family: var(--font-tabular);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible keyboard focus everywhere, not just form controls. */
+:focus-visible {
+  outline: 2px solid var(--clinical);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,0 +1,12 @@
+=== Authorization proof: a patient hitting doctor/admin-only endpoints ===
+Run at: 2026-08-20T16:27:04.929Z
+Patient: patient1@clinic.test (1857dc5b-392a-4394-b93c-ff81663e99b9)
+Target doctor profile: ab1a018d-5e0d-4c0e-9762-2ae9b524953d
+Target booking: c2a0632d-e16f-4e30-a9ac-78e858a48ced
+
+PASS  POST /api/appointments/c2a0632d-e16f-4e30-a9ac-78e858a48ced/complete -> 403 FORBIDDEN  [PATIENT completes a doctor's appointment]
+PASS  POST /api/doctors/ab1a018d-5e0d-4c0e-9762-2ae9b524953d/leave -> 403 FORBIDDEN  [PATIENT creates leave for a doctor]
+PASS  GET /api/admin/outbox -> 403 FORBIDDEN  [PATIENT views the admin outbox dead-letter list]
+PASS  POST /api/doctors -> 403 FORBIDDEN  [PATIENT creates a doctor account]
+
+Result: PASS — every doctor/admin-only route rejected the patient with 403 FORBIDDEN.

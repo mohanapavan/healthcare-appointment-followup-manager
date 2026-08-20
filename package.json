@@ -14,7 +14,8 @@
     "seed": "tsx prisma/seed.ts",
     "test": "dotenv -o -e .env -e .env.test -- vitest run",
     "test:watch": "dotenv -o -e .env -e .env.test -- vitest",
-    "concurrency-test": "dotenv -e .env -- tsx scripts/concurrency-test.ts"
+    "concurrency-test": "dotenv -e .env -- tsx scripts/concurrency-test.ts",
+    "authorization-proof": "dotenv -e .env -- tsx scripts/authorization-proof.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -40,7 +41,7 @@
     "@types/react-dom": "^19",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.3.1",
+    "eslint-config-next": "^16.3.1",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
