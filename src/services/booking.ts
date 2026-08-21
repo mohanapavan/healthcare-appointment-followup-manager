@@ -127,7 +127,7 @@ export interface ConfirmResult {
  * call, hold token included, returns the same booking rather than erroring).
  * The domain write and the outbox inserts happen in one transaction: a
  * booking can never exist without its confirmation email/calendar/AI-summary
- * jobs queued, and vice versa (CLAUDE.md §3).
+ * jobs queued, and vice versa (the spec §3).
  */
 export async function confirmBooking(
   patientId: string,
@@ -211,7 +211,7 @@ export async function confirmBooking(
 /**
  * Patient-initiated cancel. Same rule as every other status change: never a
  * hard delete, and the domain write + its outbox events (email, calendar
- * delete) commit together (CLAUDE.md §3). Reuses the exact same
+ * delete) commit together (the spec §3). Reuses the exact same
  * BOOKING_CANCELLATION/CALENDAR_DELETE dispatchers the leave-conflict flow
  * uses — cancellation has one code path regardless of who initiated it.
  */

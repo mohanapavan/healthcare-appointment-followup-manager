@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Design tokens — see UI_UPGRADE.md. Daylight only, no dark mode: a clinical
+   Design tokens — see the UI spec. Daylight only, no dark mode: a clinical
    tool is used in a lit room. The organising idea is depth — the page RECEDES
    and content FLOATS above it, the opposite of the old flat single-surface UI.
    --------------------------------------------------------------------------- */

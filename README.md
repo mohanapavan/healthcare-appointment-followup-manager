@@ -26,17 +26,14 @@ App Router · Prisma · PostgreSQL partial unique index · Auth.js RBAC ·
 Google Calendar OAuth sync · medication reminders · healthcare scheduling
 system.
 
-See [`CLAUDE.md`](./CLAUDE.md) for the full spec this was built against,
-[`PLAN.md`](./PLAN.md) for the build order, [`DESIGN.md`](./DESIGN.md) for
-the frontend's design tokens and rationale, and
-[`WRITEUP.md`](./WRITEUP.md) for the 800-word system design write-up
+See [`DESIGN.md`](./DESIGN.md) for the frontend's design tokens and rationale,
+and [`WRITEUP.md`](./WRITEUP.md) for the 800-word system design write-up
 (double-booking prevention, leave conflict handling, the slot hold
 mechanism, notification failure handling, and what I'd do differently).
 
-> **Status:** feature-complete against `PLAN.md`; not yet deployed to a
-> public URL (needs a Vercel/Render account — see § Deployment). This
-> README is updated at the end of every phase, so it always reflects what's
-> actually implemented, not the eventual target. See the checklist below.
+> **Status:** feature-complete; not yet deployed to a public URL (needs a
+> Vercel/Render account — see § Deployment). This README always reflects
+> what's actually implemented, not the eventual target. See the checklist below.
 
 ## Build status
 
@@ -459,7 +456,7 @@ here to avoid the two drifting out of sync.
 
 ## Doctor leave — conflict resolution
 
-Marking leave is a conflict-resolution flow, not a delete (CLAUDE.md §2):
+Marking leave is a conflict-resolution flow, not a delete (the spec §2):
 
 1. `POST /api/doctors/:id/leave/preview` — dry-run, returns exactly which
    `HELD`/`CONFIRMED` bookings the proposed range would affect (patient name,
@@ -488,7 +485,7 @@ Proven both by `tests/leave.test.ts` (preview scoping, transactional
 cancel+outbox+audit-log, non-overlapping bookings survive, overlap
 rejection) and live against real Ethereal: booked three real slots, marked
 that day as leave, and all three patients (and the doctor) received an
-actual cancellation email with three real rebooking links — the PLAN.md
+actual cancellation email with three real rebooking links — the plan
 Phase 5 check, run for real rather than asserted in the abstract.
 
 ## Google Calendar
@@ -536,7 +533,7 @@ close this gap; noted under [WRITEUP.md § What I'd do differently](./WRITEUP.md
   random IV per encryption and an auth tag checked on decrypt.
 - `CALENDAR_CREATE`/`UPDATE`/`DELETE` are outbox events, dispatched from
   `POST /api/jobs/tick` exactly like email — calendar failure is "an outbox
-  event like any other" (CLAUDE.md §7) and never rolls back a booking.
+  event like any other" (the spec §7) and never rolls back a booking.
 - Each side (patient, doctor) has its own `CalendarLink` row per booking, so
   syncing is per-user: a patient who never connected their calendar doesn't
   block the doctor's event from being created, and vice versa.
@@ -557,7 +554,7 @@ close this gap; noted under [WRITEUP.md § What I'd do differently](./WRITEUP.md
 
 Generated once, at the moment a doctor saves a prescription
 (`completeVisit` in `src/services/visit.ts`) — not a cron that re-derives
-the schedule on every tick (CLAUDE.md §3). One `MEDICATION_REMINDER` outbox
+the schedule on every tick (the spec §3). One `MEDICATION_REMINDER` outbox
 row per dose window: a 3×/day, 5-day item produces exactly 15 rows, each
 `nextAttemptAt` set to its own due time (`src/services/medication.ts`).
 Doses are spread evenly across an 08:00–22:00 clinic-local window (a single
@@ -575,8 +572,8 @@ anyone else's, not `FORBIDDEN` — see [§ API design](#api) on 403 vs 404).
 
 ## Frontend
 
-The UI is built in **two registers** (see [`DESIGN.md`](./DESIGN.md) and
-[`UI_UPGRADE.md`](./UI_UPGRADE.md)): a composed, photographic **public surface**
+The UI is built in **two registers** (see [`DESIGN.md`](./DESIGN.md)): a
+composed, photographic **public surface**
 (`/`, `/login`, `/register`) and a dense, quiet **operational surface** (the three
 portals). Getting the contrast between them right is the point — the lobby is
 generous and confident; the ward is fast and information-dense. A four-level surface

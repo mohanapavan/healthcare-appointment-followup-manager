@@ -1,7 +1,7 @@
 # DESIGN.md
 
-> Rewritten after the UI rebuild to describe what was **actually built**. Supersedes
-> the original restraint-first design. See `UI_UPGRADE.md` for the brief this implements.
+> Describes what was **actually built** — the design tokens, type system, motion, and
+> the day-rail signature element, with an honest self-critique at the end.
 
 ## The core idea: two registers
 

@@ -8,7 +8,7 @@ export default defineConfig({
     testTimeout: 20000,
     hookTimeout: 20000,
     // These are integration tests against one real, shared Postgres test DB
-    // (deliberately — CLAUDE.md's concurrency/outbox claims need proving
+    // (deliberately — the spec's concurrency/outbox claims need proving
     // against real transactions, not mocks). Running test *files* in
     // parallel lets one file's cleanup delete rows another file's
     // drainOutbox() is mid-retry on (drainOutbox claims any due row by

@@ -215,7 +215,7 @@ async function loadBookingContext(bookingId: string) {
 
 /**
  * The LLM call lives here, dispatched from the outbox worker — never inline
- * in the booking-confirm request handler (CLAUDE.md hard rule #3). A
+ * in the booking-confirm request handler (the spec hard rule #3). A
  * fallback-sourced result still counts as dispatch success: graceful
  * degradation is the point, not a retry-worthy failure.
  */
@@ -247,7 +247,7 @@ async function dispatchAiPostVisitGeneration(payload: {
 /**
  * Calendar sync is opt-in per user and never blocks a booking either way:
  * a party with no connected Google account is silently skipped (not an
- * error), and a revoked/expired refresh token (CLAUDE.md §7) marks the
+ * error), and a revoked/expired refresh token (the spec §7) marks the
  * account BROKEN and moves on rather than retrying forever or failing the
  * outbox event. Idempotent against retries via CalendarLink — a create
  * that already has an externalEventId is not repeated (Google's REST API

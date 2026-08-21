@@ -1,5 +1,5 @@
 /**
- * CLAUDE.md hard rule #5: "A patient hitting a doctor's endpoint by ID must
+ * the spec hard rule #5: "A patient hitting a doctor's endpoint by ID must
  * get 403, and there must be a test for it." tests/authorization.test.ts
  * covers the service-layer ownership checks; this proves the HTTP layer
  * (requireRole()/requireAdminOrOwningDoctor() actually gating the route)

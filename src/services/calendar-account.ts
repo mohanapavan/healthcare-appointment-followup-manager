@@ -37,7 +37,7 @@ export async function getActiveRefreshToken(userId: string): Promise<string | nu
   return decryptSecret(account.encryptedRefreshToken);
 }
 
-/** Revoked/expired consent (CLAUDE.md §7): mark broken, keep the appointment valid, prompt the user to reconnect next time they view the calendar settings (Phase 8 UI). */
+/** Revoked/expired consent (the spec §7): mark broken, keep the appointment valid, prompt the user to reconnect next time they view the calendar settings (Phase 8 UI). */
 export async function markAccountBroken(userId: string): Promise<void> {
   const result = await prisma.googleCalendarAccount.updateMany({
     where: { userId },

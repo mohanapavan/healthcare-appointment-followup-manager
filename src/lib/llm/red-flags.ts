@@ -1,6 +1,6 @@
 /**
  * Deterministic safety net: these keywords force urgency = High regardless
- * of what the model returns (CLAUDE.md §4 — "must return urgency High for
+ * of what the model returns (the spec §4 — "must return urgency High for
  * any red-flag symptom", "red-flag symptoms are escalated by deterministic
  * rules, not by the model"). This list runs on every pre-visit submission,
  * whether or not the LLM call itself succeeds.

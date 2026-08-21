@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { runSeed, wipeAllData } from "@/services/seed";
 
 /**
- * Deliverable requirement (CLAUDE.md §9.3): "a demo-reset endpoint so the
+ * Deliverable requirement (the spec §9.3): "a demo-reset endpoint so the
  * grader can re-run the flow." Wipes every row this app owns and re-seeds
  * the standard demo data. Deliberately opt-in via DEMO_RESET_SECRET (a
  * separate secret from CRON_SECRET — this is a strictly more destructive

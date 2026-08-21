@@ -1,6 +1,6 @@
 /**
  * Prompts are treated as source code: versioned so every AiGeneration row
- * can be traced back to the exact prompt that produced it (CLAUDE.md §4).
+ * can be traced back to the exact prompt that produced it (the spec §4).
  * Bump the version string whenever the prompt text changes.
  */
 

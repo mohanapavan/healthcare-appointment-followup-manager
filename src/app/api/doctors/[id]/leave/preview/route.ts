@@ -9,7 +9,7 @@ const bodySchema = z.object({
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "endDate must be YYYY-MM-DD"),
 });
 
-/** "3 appointments are affected" preview shown before the admin/doctor confirms marking a range as leave (CLAUDE.md §2). */
+/** "3 appointments are affected" preview shown before the admin/doctor confirms marking a range as leave (the spec §2). */
 export const POST = withApiParams<{ id: string }>(async (req: NextRequest, { params }) => {
   await requireAdminOrOwningDoctor(params.id);
   const { startDate, endDate } = await parseBody(req, bodySchema);

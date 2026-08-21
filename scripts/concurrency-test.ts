@@ -1,5 +1,5 @@
 /**
- * The concurrency proof CLAUDE.md §1 asks for: fires 50 simultaneous
+ * The concurrency proof the spec §1 asks for: fires 50 simultaneous
  * POST /api/slots/hold requests at the exact same doctor + slot, through
  * the real HTTP API (not a direct service-function call), and asserts
  * exactly 1 succeeds (201) and 49 come back 409 SLOT_TAKEN, with exactly 1

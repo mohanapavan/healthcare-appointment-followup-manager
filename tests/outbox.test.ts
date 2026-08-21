@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 // Simulates the email provider being fully unreachable ("point the key at a
-// dead host" — CLAUDE.md §3 check). Declared before any @/services/outbox
+// dead host" — the spec §3 check). Declared before any @/services/outbox
 // import so the mock is in place when that module resolves its own import.
 vi.mock("@/lib/email", () => ({
   getEmailProvider: () => ({

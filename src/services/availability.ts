@@ -11,7 +11,7 @@ export interface AvailableSlot {
  * Availability is computed on every call, never stored — derived from
  * working hours minus leave minus active (HELD-and-unexpired or CONFIRMED)
  * bookings. A pre-generated slots table would desync the moment a doctor
- * edits their hours (CLAUDE.md §1).
+ * edits their hours (the spec §1).
  */
 export async function getAvailability(doctorProfileId: string, dateStr: string): Promise<AvailableSlot[]> {
   if (!isValidDateString(dateStr)) {

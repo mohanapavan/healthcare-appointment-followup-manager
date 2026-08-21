@@ -8,7 +8,7 @@ const querySchema = z.object({
   status: z.enum(["PENDING", "PROCESSING", "SENT", "FAILED", "CANCELLED"]).optional(),
 });
 
-/** Failures must be visible, not silent (CLAUDE.md §3) — this backs the admin dead-letter view. */
+/** Failures must be visible, not silent (the spec §3) — this backs the admin dead-letter view. */
 export const GET = withApi(async (req: NextRequest) => {
   await requireRole("ADMIN");
   const { status } = parseQuery(req, querySchema);

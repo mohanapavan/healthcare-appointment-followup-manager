@@ -34,8 +34,10 @@ yarn-error.log*
 .env*
 !.env.example
 
-# claude code session state (not part of the app)
+# local editor/agent state (not part of the app)
 /.claude/
+/.idea/
+/.vscode/
 
 # vercel
 .vercel

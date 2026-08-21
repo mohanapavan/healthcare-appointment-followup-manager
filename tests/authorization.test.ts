@@ -5,7 +5,7 @@ import { cancelBooking, confirmBooking, holdSlot } from "@/services/booking";
 import { createDoctor, createPatient, setWorkingHours, cleanup } from "./helpers";
 
 /**
- * CLAUDE.md hard rule #5: "A patient hitting a doctor's endpoint by ID must
+ * the spec hard rule #5: "A patient hitting a doctor's endpoint by ID must
  * get 403, and there must be a test for it." Server-side authorization,
  * checked here at the service layer (the layer these rules actually live
  * in — route handlers just call requireRole()/requireAdminOrOwningDoctor()

@@ -17,7 +17,7 @@ export interface PrescriptionItemInput {
  * COMPLETED and, in the same transaction: enqueues the post-visit AI
  * summary and every medication reminder for every item — same "domain
  * write and outbox insert together" rule as booking confirmation
- * (CLAUDE.md §3).
+ * (the spec §3).
  */
 export async function completeVisit(
   doctorUserId: string,

@@ -13,7 +13,7 @@ export interface AuthUser {
 /**
  * Server-side session check. Every API route that needs a signed-in user
  * calls this itself — UI role gating is cosmetic and is not trusted here
- * (CLAUDE.md §hard-rules #5).
+ * (the spec §hard-rules #5).
  */
 export async function requireAuth(): Promise<AuthUser> {
   const session = await auth();

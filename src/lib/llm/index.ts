@@ -133,7 +133,7 @@ async function runGeneration<T>(opts: {
 
 /**
  * Symptoms only — never pass patient name/email/phone/DOB into an LLM call
- * (CLAUDE.md §4 compliance instinct). entityId is the booking id; the audit
+ * (the spec §4 compliance instinct). entityId is the booking id; the audit
  * row is what makes this generation traceable end to end via correlationId.
  */
 export async function generatePreVisitSummary(

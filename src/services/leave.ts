@@ -34,7 +34,7 @@ async function findAffectedBookings(tx: Prisma.TransactionClient | typeof prisma
   });
 }
 
-/** Dry-run: what would marking this range as leave affect? Shown to the admin/doctor before they confirm (CLAUDE.md §2). */
+/** Dry-run: what would marking this range as leave affect? Shown to the admin/doctor before they confirm (the spec §2). */
 export async function previewLeaveImpact(doctorProfileId: string, startDate: Date, endDate: Date) {
   return findAffectedBookings(prisma, doctorProfileId, startDate, endDate);
 }

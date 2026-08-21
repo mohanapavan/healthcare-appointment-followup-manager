@@ -23,7 +23,7 @@ export interface ReminderRowInput {
 
 /**
  * Pure computation, no DB access — one row per dose window. Not a cron that
- * re-derives the schedule on every tick (CLAUDE.md §3); called once, at
+ * re-derives the schedule on every tick (the spec §3); called once, at
  * prescription-save time. Starts the same clinic-local day the prescription
  * is written; a dose time earlier in the day than "now" still gets a row
  * (due immediately), matching "N doses/day for M days = N*M rows" exactly

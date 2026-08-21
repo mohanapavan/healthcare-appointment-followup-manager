@@ -12,7 +12,7 @@ async function getOrCreateState() {
   });
 }
 
-/** After 3 consecutive provider failures, skip calling the LLM for 60s and go straight to fallback (CLAUDE.md §4). */
+/** After 3 consecutive provider failures, skip calling the LLM for 60s and go straight to fallback (the spec §4). */
 export async function isCircuitOpen(): Promise<boolean> {
   const state = await getOrCreateState();
   return Boolean(state.openUntil && state.openUntil > new Date());
