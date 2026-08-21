@@ -99,6 +99,12 @@ In priority order, what ships:
 4. **Staggered list entry** (30ms, capped at 8) and **number-roll** on the focal numerals — once
    per mount, never on scroll.
 
+**A deliberate omission:** the rail's slots do *not* use framer's `layout`/`layoutId`. They
+never actually reposition (each slot is pinned to its time), and `layout` re-measured all ~16
+of them on every render — once a second while a hold counts down — for no visible gain. The
+held state animates with a cheap fade plus the lift/shake above instead. Cheap motion that
+reads as intentional beats expensive motion that janks.
+
 ## Imagery
 
 Real photographs, curated by eye and committed as optimized `.webp` (hero 152KB, portraits

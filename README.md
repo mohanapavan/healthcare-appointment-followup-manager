@@ -655,19 +655,29 @@ specialisations, next open slot) — real system state, not hardcoded.
   no layout shift. Portal routes need an authenticated session; their accessibility is
   covered by the axe audit above.
 
-**Real bugs the "look at what you build" process caught**: a hero layout bug (the
-`Photo` wrapper's hardcoded `relative` beat the caller's `absolute`, pushing hero
-content into the sections below) and a batch of axe contrast failures — both found by
-screenshotting/auditing and fixed, in the commit history. Earlier backend bugs (a
-display duplication, a clinic-timezone rendering bug, a day-boundary bug) are also in
-`git log` with their fixes.
+### Real bugs the "look at what you build" process caught
 
-**Real bugs this actually caught** (not hypothetical — found by using the
-feature in a browser, per this project's own process): a display-duplication
-bug, a timezone bug where appointment times rendered in the server's own
-timezone instead of the clinic's, and a day-boundary bug where a doctor's
-"today" view silently matched zero bookings. All three are in the commit
-history with the fix and the reasoning; see `git log`.
+Not hypothetical — each was found by using/auditing the app in a browser and is in
+`git log` with its fix and reasoning:
+
+- **Hydration mismatch (SSR locale).** `toLocale*` ran with the runtime's default
+  locale, so the server rendered `Friday 21 August` while the browser rendered
+  `Friday, August 21`. React can't reconcile that and **regenerated the tree on every
+  load**, which briefly drops event handlers (felt like "clicks don't register").
+  Fixed by pinning the formatter locale — every date/time render, app-wide.
+- **Day-rail render jank.** framer's `layout` sat on all ~16 slot buttons, re-measuring
+  them every render (once a second during a hold). Removed; kept only the
+  state-carrying motion (the pending lift, the 409 shake). Also swapped the sticky
+  header's `backdrop-blur` (repaints every scroll frame) for a solid surface.
+- **Hero layout bug.** The `Photo` wrapper's hardcoded `relative` beat the caller's
+  `absolute`, pushing hero content down into the sections below.
+- **Auth panels short of the viewport** (`min-height:100%` doesn't resolve without an
+  explicit parent height → `min-h-screen`), a **double-highlighted nav** (parent route
+  matched as a prefix → longest-prefix match), and a batch of **axe AA contrast
+  failures** (a dedicated `--caution-ink`, body text off the placeholder tone).
+- **Backend, earlier:** a display-duplication bug, a clinic-timezone rendering bug
+  (times shown in the server's timezone, not the clinic's), and a day-boundary bug
+  where a doctor's "today" silently matched zero bookings.
 
 ## API
 
