@@ -54,7 +54,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="grid min-h-full lg:grid-cols-2">
+    <div className="grid min-h-screen lg:grid-cols-2">
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-8">

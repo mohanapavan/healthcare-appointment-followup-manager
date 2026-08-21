@@ -46,7 +46,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-full lg:grid-cols-2">
+    <div className="grid min-h-screen lg:grid-cols-2">
       {/* Photo panel — hidden below 900px (§6.2) */}
       <div className="relative hidden lg:block">
         <Photo
