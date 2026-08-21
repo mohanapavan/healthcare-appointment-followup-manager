@@ -22,6 +22,11 @@ export function PortalShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  // Longest-prefix match, so a parent item (e.g. /patient) isn't also marked
+  // active when a sibling child route (/patient/appointments) is the real match.
+  const activeHref = links
+    .filter((l) => pathname === l.href || pathname.startsWith(l.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -37,7 +42,7 @@ export function PortalShell({
             </div>
             <nav className="flex gap-1" aria-label="Primary">
               {links.map((link) => {
-                const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href + "/"));
+                const active = link.href === activeHref;
                 return (
                   <Link
                     key={link.href}
