@@ -1,48 +1,143 @@
 @import "tailwindcss";
 
-/* Daylight only — see DESIGN.md. No dark-mode variant, deliberately: a
-   clinical tool is used in a lit room, and committing to one look avoids
-   redefining every token twice for a mode this brief doesn't want. */
+/* ---------------------------------------------------------------------------
+   Design tokens — see UI_UPGRADE.md. Daylight only, no dark mode: a clinical
+   tool is used in a lit room. The organising idea is depth — the page RECEDES
+   and content FLOATS above it, the opposite of the old flat single-surface UI.
+   --------------------------------------------------------------------------- */
 :root {
-  --paper: #f3f4f1;
-  --paper-raised: #fbfbf9;
-  --ink: #1e2a38;
-  --ink-muted: #5b6675;
-  --line: #d8d3c7;
-  --clinical: #2f5d8a;
-  --clinical-dark: #234a70;
+  /* Surfaces (§2.1) — page recedes, cards float. */
+  --surface-sunken: #e8eae6; /* page background behind cards */
+  --surface-base: #f2f3f0; /* default panel */
+  --surface-raised: #fafaf8; /* cards, the day rail, anything that floats */
+  --surface-overlay: #ffffff; /* modals, popovers, top of the stack */
+  --surface-inverse: #16202c; /* the doctor's "now" bar, footer, inverted panels */
+
+  /* Ink ramp (§2.2) — four text weights, not one. */
+  --ink-900: #16202c; /* headings */
+  --ink-700: #33414f; /* body */
+  --ink-500: #5b6875; /* secondary, labels */
+  --ink-400: #8a949e; /* placeholder, disabled */
+  --ink-line: rgba(22, 32, 44, 0.1); /* hairlines */
+  --ink-line-strong: rgba(22, 32, 44, 0.18);
+
+  /* Semantics (§2.3) — clinical kept, caution shifted more orange. */
+  --clinical: #2f5d8a; /* primary action */
+  --clinical-deep: #1f4266; /* hover / pressed / inverse-panel accent */
   --urgent: #b3423e;
-  --urgent-bg: #f6e4e2;
-  --caution: #b5792a;
-  --caution-bg: #f5e9d6;
+  --caution: #c2701a; /* shifted orange, away from the brass */
   --confirmed: #3f7856;
-  --confirmed-bg: #e2ede6;
+
+  /* Semantic washes (backgrounds) + lines (borders). Solid equivalents of the
+     spec's "8% over raised / 30% border" so they work as fills too. */
+  --clinical-wash: #e4ebf1;
+  --clinical-line: rgba(47, 93, 138, 0.3);
+  --urgent-wash: #f5e3e1;
+  --urgent-line: rgba(179, 66, 62, 0.3);
+  --caution-wash: #f7e8d5;
+  --caution-line: rgba(194, 112, 26, 0.32);
+  --confirmed-wash: #e2ece6;
+  --confirmed-line: rgba(63, 120, 86, 0.3);
+
+  /* Brass — the one indulgence (§2.4). Register A only, as a line or a mark. */
+  --brass: #9a7b3f;
+  --brass-line: linear-gradient(90deg, transparent, #9a7b3f 20%, #9a7b3f 80%, transparent);
+
+  /* ---- Legacy aliases: keep old screens compiling during migration. ------ */
+  --paper: var(--surface-sunken);
+  --paper-raised: var(--surface-raised);
+  --ink: var(--ink-900);
+  --ink-muted: var(--ink-500);
+  --line: #d9dcd6;
+  --clinical-dark: var(--clinical-deep);
+  --urgent-bg: var(--urgent-wash);
+  --caution-bg: var(--caution-wash);
+  --confirmed-bg: var(--confirmed-wash);
 }
 
 @theme inline {
-  --color-paper: var(--paper);
-  --color-paper-raised: var(--paper-raised);
-  --color-ink: var(--ink);
-  --color-ink-muted: var(--ink-muted);
-  --color-line: var(--line);
-  --color-clinical: var(--clinical);
-  --color-clinical-dark: var(--clinical-dark);
-  --color-urgent: var(--urgent);
-  --color-urgent-bg: var(--urgent-bg);
-  --color-caution: var(--caution);
-  --color-caution-bg: var(--caution-bg);
-  --color-confirmed: var(--confirmed);
-  --color-confirmed-bg: var(--confirmed-bg);
+  /* New surface + ink utilities */
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-inverse: var(--surface-inverse);
 
+  --color-ink-900: var(--ink-900);
+  --color-ink-700: var(--ink-700);
+  --color-ink-500: var(--ink-500);
+  --color-ink-400: var(--ink-400);
+  --color-ink-line: var(--ink-line);
+  --color-ink-line-strong: var(--ink-line-strong);
+
+  --color-clinical: var(--clinical);
+  --color-clinical-deep: var(--clinical-deep);
+  --color-clinical-wash: var(--clinical-wash);
+  --color-clinical-line: var(--clinical-line);
+  --color-urgent: var(--urgent);
+  --color-urgent-wash: var(--urgent-wash);
+  --color-urgent-line: var(--urgent-line);
+  --color-caution: var(--caution);
+  --color-caution-wash: var(--caution-wash);
+  --color-caution-line: var(--caution-line);
+  --color-confirmed: var(--confirmed);
+  --color-confirmed-wash: var(--confirmed-wash);
+  --color-confirmed-line: var(--confirmed-line);
+  --color-brass: var(--brass);
+
+  /* Legacy color utilities (bg-paper, text-ink-muted, border-line, …) */
+  --color-paper: var(--surface-sunken);
+  --color-paper-raised: var(--surface-raised);
+  --color-ink: var(--ink-900);
+  --color-ink-muted: var(--ink-500);
+  --color-line: var(--line);
+  --color-clinical-dark: var(--clinical-deep);
+  --color-urgent-bg: var(--urgent-wash);
+  --color-caution-bg: var(--caution-wash);
+  --color-confirmed-bg: var(--confirmed-wash);
+
+  /* Fonts (variables injected by next/font on <html>) */
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-tabular: var(--font-tabular);
+
+  /* Type scale — go wider for Register A (§3). */
+  --text-4xl: 3.5rem;
+  --text-4xl--line-height: 1.02;
+  --text-4xl--letter-spacing: -0.02em;
+  --text-5xl: 4.75rem;
+  --text-5xl--line-height: 0.98;
+  --text-5xl--letter-spacing: -0.03em;
+  --text-6xl: 6.5rem;
+  --text-6xl--line-height: 0.94;
+  --text-6xl--letter-spacing: -0.035em;
+
+  /* Radii (§2.5) */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Elevation (§2.5) — three-part shadows: contact + diffuse + inner top light. */
+  --shadow-elev-1: 0 1px 1px rgba(22, 32, 44, 0.04), 0 2px 6px rgba(22, 32, 44, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --shadow-elev-2: 0 1px 2px rgba(22, 32, 44, 0.06), 0 4px 12px rgba(22, 32, 44, 0.06),
+    0 12px 32px rgba(22, 32, 44, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --shadow-elev-3: 0 2px 4px rgba(22, 32, 44, 0.08), 0 12px 28px rgba(22, 32, 44, 0.1),
+    0 32px 64px rgba(22, 32, 44, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
   --spacing-rail-hour: 4rem; /* one hour on the day rail = 64px, see DESIGN.md */
 }
 
 body {
   font-family: var(--font-body);
+  background: var(--surface-sunken);
+  color: var(--ink-700);
+  /* Inter: optical sizing + a couple of stylistic sets for a less default look (§3). */
+  font-feature-settings: "cv05" 1, "ss01" 1;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 .font-display {
@@ -54,11 +149,60 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Visible keyboard focus everywhere, not just form controls. */
+/* Oversized display numerals — the signature typographic motif (§3). */
+.numeral {
+  font-family: var(--font-tabular);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+/* The brass rule — an engraved plaque line, Register A only. */
+.brass-rule {
+  height: 1px;
+  border: 0;
+  background: var(--brass-line);
+}
+
+/* Uniform photographic grade so imagery reads as one system, not a moodboard
+   (§4). Applied on the image wrapper — one rule, not eight edits. */
+.img-grade {
+  filter: saturate(0.88) contrast(0.98) brightness(1.02);
+}
+.img-grade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(154, 123, 63, 0.06), rgba(22, 32, 44, 0.04));
+  pointer-events: none;
+}
+
+/* Skeleton shimmer at ~8% (§6.7) — a designed loading state, not animate-pulse. */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--ink-line);
+  border-radius: var(--radius-sm);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Visible keyboard focus everywhere (§7). */
 :focus-visible {
   outline: 2px solid var(--clinical);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -69,5 +213,8 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .skeleton::after {
+    display: none;
   }
 }
