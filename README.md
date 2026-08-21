@@ -638,13 +638,22 @@ specialisations, next open slot) — real system state, not hardcoded.
   `MotionConfig reducedMotion="user"` plus a `globals.css` media query —
   **verified by toggling** (0 elements left stuck hidden).
 - **Accessibility** — `npm run a11y` runs an **axe-core WCAG 2 A/AA** audit of every
-  route as each role. The public routes pass with **0 violations**; contrast was
-  fixed against real axe findings (a dedicated `--caution-ink` for small caution text,
-  body text promoted off the placeholder tone). Visible `:focus-visible` rings, real
+  route as each role. **All 9 routes pass with 0 violations.** Contrast was fixed
+  against real axe findings (a dedicated `--caution-ink` for small caution text, body
+  text promoted off the placeholder tone). Visible `:focus-visible` rings, real
   `<label>`s, focus moves into the sheet and returns on close, works at 375px.
-  *Portal-route audits and Lighthouse (`npx lighthouse` against a `next build` — dev
-  server numbers aren't meaningful for performance) require the database running; the
-  Docker engine was down in this environment, so those numbers are pending.*
+- **Lighthouse** (production build, `next start`, headless Chrome):
+
+  | Route | Perf | A11y | Best-practices |
+  |---|---|---|---|
+  | `/` (landing, desktop) | **100** | **100** | **100** |
+  | `/` (landing, mobile) | **93** | **100** | — |
+  | `/login` (desktop) | **100** | **100** | **100** |
+
+  The landing carries the hero photograph and still scores LCP 0.7s / CLS 0 on
+  desktop (LCP 2.8s / CLS 0.011 on throttled mobile) — explicit image dimensions mean
+  no layout shift. Portal routes need an authenticated session; their accessibility is
+  covered by the axe audit above.
 
 **Real bugs the "look at what you build" process caught**: a hero layout bug (the
 `Photo` wrapper's hardcoded `relative` beat the caller's `absolute`, pushing hero
