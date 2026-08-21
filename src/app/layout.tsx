@@ -29,9 +29,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      // Browser extensions (e.g. Night Eye's `nighteye` attr, Grammarly, dark-mode
+      // tools) mutate <html>/<body> before React hydrates; suppress the resulting
+      // attribute-mismatch warning on the root element. Standard Next.js practice.
+      suppressHydrationWarning
       className={`${spaceGrotesk.variable} ${inter.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-paper text-ink font-body">
+      <body suppressHydrationWarning className="min-h-full flex flex-col bg-paper text-ink font-body">
         <Providers>{children}</Providers>
       </body>
     </html>
