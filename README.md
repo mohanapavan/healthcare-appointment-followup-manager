@@ -575,38 +575,83 @@ anyone else's, not `FORBIDDEN` — see [§ API design](#api) on 403 vs 404).
 
 ## Frontend
 
-Three separate portals (`src/app/{patient,doctor,admin}`), each gated server-side
-in its `layout.tsx` (redirects to `/login` if unauthenticated, to `/` if
-signed in as the wrong role) — the same "UI role checks are cosmetic"
-principle as the API, applied to pages. Design tokens, type system, and the
-day-rail signature component are covered in [`DESIGN.md`](./DESIGN.md).
+The UI is built in **two registers** (see [`DESIGN.md`](./DESIGN.md) and
+[`UI_UPGRADE.md`](./UI_UPGRADE.md)): a composed, photographic **public surface**
+(`/`, `/login`, `/register`) and a dense, quiet **operational surface** (the three
+portals). Getting the contrast between them right is the point — the lobby is
+generous and confident; the ward is fast and information-dense. A four-level surface
+system, a four-weight ink ramp, layered elevation, oversized tabular numerals, and a
+rebuilt day rail carry the design; a rationed brass accent marks the institution.
 
-- **Patient**: search doctors → day rail → hold (live countdown) → symptom
-  form → confirm; "My appointments" with cancel, pre-visit summary (urgency
-  badge, AI disclosure), post-visit summary + medication schedule, and a
-  per-medication reminder schedule the patient can view and stop.
-- **Doctor**: today's clinic day (patient name, chief complaint, urgency —
-  sorted by time, urgency shown via label+icon+color per the brief's "never
-  color alone" rule); appointment detail with the full pre-visit summary and
-  suggested questions; complete-visit form (notes + a dynamic prescription
-  list); leave request with the impact preview before confirming.
-- **Admin**: doctor roster with working hours at a glance, a create-doctor
-  form (account + specialisation + working days/hours in one step); outbox
-  health dashboard (counts by status) and the dead-letter list with a
-  one-click retry.
+### Screens
 
-Every state the brief calls for is designed, not just the happy path:
-loading (skeletons), empty (`EmptyState`, an invitation to act, not a dead
-end), error (`ErrorBanner`, what happened + retry where retrying makes
-sense), and the AI-fallback state (the disclosure line, always present
-regardless of source). Visible focus rings and `prefers-reduced-motion`
-handling are global (`globals.css`); the day rail's countdown is the one
-motion in the whole app that isn't a direct response to a click. Checked at
-375px viewport width (patient/doctor nav, the day rail) with no horizontal
-overflow. Not independently measured with Lighthouse in this environment —
-the accessibility choices above (semantic landmarks, real `<label>`s, focus
-management, redundant urgency signaling) were made deliberately against the
-≥95 target, not verified against it with the actual tool.
+| Landing (`/`) | Sign-in (`/login`) |
+|---|---|
+| ![Landing](docs/screens/public-landing.desktop.png) | ![Login](docs/screens/public-login.desktop.png) |
+
+| Patient — book (the day rail) | Doctor — today |
+|---|---|
+| ![Book](docs/screens/patient-book.desktop.png) | ![Doctor today](docs/screens/doctor-today.desktop.png) |
+
+| Admin — outbox health |
+|---|
+| ![Outbox](docs/screens/admin-outbox.desktop.png) |
+
+Every route is screenshotted at **1440px and 390px** under
+[`docs/screens/`](docs/screens) — regenerate with `npm run shoot` (logs in as each
+seeded role and captures every page at both widths).
+
+### Portals
+
+- **Patient**: home leads with the next-visit numeral and portrait doctor cards →
+  day rail → optimistic hold (SVG countdown ring; a `409` shakes the slot and slides
+  in three alternatives) → symptom panel → confirm. "My appointments" features the
+  next visit as one large card, brass-ruled AI summaries with the disclosure line,
+  and the medication schedule as a **dose strip** (24-hour rail with dose markers),
+  plus per-medication reminders you can view and stop.
+- **Doctor**: an inverse "today" header with the patient-count numeral and a live
+  clock; a pinned high-urgency strip (label + icon + weight + color, never color
+  alone); the day sheet; appointment detail with the full pre-visit summary and
+  suggested questions; a complete-visit **sheet** (notes + a prescription list whose
+  items spring in and collapse out); leave with the impact preview before confirming.
+- **Admin**: densest screen — doctor roster as a real table with a sticky header;
+  outbox health as big counters where a non-zero **dead-letter count turns urgent
+  and says "needs attention"**, above the dead-letter list with one-click retry.
+
+Every state is designed: loading (shimmer skeletons matching the final layout), empty
+(custom SVG in the token palette + an invitation to act), error (`ErrorBanner` —
+what happened + retry), and the AI-fallback state (marked, never hidden). The public
+landing pulls **live numbers from `/api/stats`** (doctors in clinic today,
+specialisations, next open slot) — real system state, not hardcoded.
+
+### Imagery, motion, accessibility
+
+- **Imagery** — 12 curated photographs committed as optimized `.webp` (hero 152KB,
+  portraits 10–18KB), served through `next/image` with blur placeholders and a uniform
+  CSS grade; credits in [`docs/image-credits.md`](docs/image-credits.md). Zero
+  decorative photography inside the portals — the one exception is the functional
+  doctor portrait.
+- **Motion** (framer `motion`) carries state, not decoration: the day-rail hold
+  interaction, the depleting countdown ring (crossing clinical→caution→urgent with the
+  label changing too), the right-hand sheet, staggered list entry, and number-roll on
+  the focal numerals. All of it is disabled under `prefers-reduced-motion` via
+  `MotionConfig reducedMotion="user"` plus a `globals.css` media query —
+  **verified by toggling** (0 elements left stuck hidden).
+- **Accessibility** — `npm run a11y` runs an **axe-core WCAG 2 A/AA** audit of every
+  route as each role. The public routes pass with **0 violations**; contrast was
+  fixed against real axe findings (a dedicated `--caution-ink` for small caution text,
+  body text promoted off the placeholder tone). Visible `:focus-visible` rings, real
+  `<label>`s, focus moves into the sheet and returns on close, works at 375px.
+  *Portal-route audits and Lighthouse (`npx lighthouse` against a `next build` — dev
+  server numbers aren't meaningful for performance) require the database running; the
+  Docker engine was down in this environment, so those numbers are pending.*
+
+**Real bugs the "look at what you build" process caught**: a hero layout bug (the
+`Photo` wrapper's hardcoded `relative` beat the caller's `absolute`, pushing hero
+content into the sections below) and a batch of axe contrast failures — both found by
+screenshotting/auditing and fixed, in the commit history. Earlier backend bugs (a
+display duplication, a clinic-timezone rendering bug, a day-boundary bug) are also in
+`git log` with their fixes.
 
 **Real bugs this actually caught** (not hypothetical — found by using the
 feature in a browser, per this project's own process): a display-duplication
