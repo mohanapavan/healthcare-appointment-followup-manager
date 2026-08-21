@@ -30,7 +30,7 @@ export function PortalShell({
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-30 border-b border-ink-line bg-surface-raised/90 backdrop-blur-sm">
+      <header className="sticky top-0 z-30 border-b border-ink-line bg-surface-raised">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3 sm:gap-6">
             <div className="flex items-center gap-2.5">

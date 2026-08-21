@@ -11,17 +11,23 @@
  */
 export const CLINIC_TIME_ZONE = process.env.NEXT_PUBLIC_APP_TIMEZONE ?? "UTC";
 
+// Pin the locale so the SERVER (Node's default locale) and the CLIENT (the
+// viewer's browser locale) format identically. With `undefined`, Node rendered
+// "Friday 21 August" while an en-US browser rendered "Friday, August 21" — a
+// text mismatch that failed hydration and forced React to regenerate the tree.
+const LOCALE = "en-US";
+
 export function formatClinicDateTime(iso: string | Date, opts: Intl.DateTimeFormatOptions = {}): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
-  return date.toLocaleString(undefined, { timeZone: CLINIC_TIME_ZONE, ...opts });
+  return date.toLocaleString(LOCALE, { timeZone: CLINIC_TIME_ZONE, ...opts });
 }
 
 export function formatClinicDate(iso: string | Date, opts: Intl.DateTimeFormatOptions = {}): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
-  return date.toLocaleDateString(undefined, { timeZone: CLINIC_TIME_ZONE, ...opts });
+  return date.toLocaleDateString(LOCALE, { timeZone: CLINIC_TIME_ZONE, ...opts });
 }
 
 export function formatClinicTime(iso: string | Date, opts: Intl.DateTimeFormatOptions = {}): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
-  return date.toLocaleTimeString(undefined, { timeZone: CLINIC_TIME_ZONE, ...opts });
+  return date.toLocaleTimeString(LOCALE, { timeZone: CLINIC_TIME_ZONE, ...opts });
 }

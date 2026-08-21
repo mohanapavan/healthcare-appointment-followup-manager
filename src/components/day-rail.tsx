@@ -1,7 +1,7 @@
 "use client";
 
 import { toZonedTime } from "date-fns-tz";
-import { motion, AnimatePresence, LayoutGroup, useReducedMotion, SPRING } from "./motion";
+import { motion, AnimatePresence, useReducedMotion, SPRING } from "./motion";
 import { Lock } from "./icons";
 
 interface RailSlot {
@@ -118,8 +118,7 @@ export function DayRail({
           <div key={m} className="absolute inset-x-0 border-t border-ink-line" style={{ top: ((m - workStartMinute) / 60) * HOUR_PX }} />
         ))}
 
-        <LayoutGroup>
-          {cells.map((cell) => {
+        {cells.map((cell) => {
             const top = ((cell.minute - workStartMinute) / 60) * HOUR_PX;
             const height = Math.max((slotDurationMins / 60) * HOUR_PX - 4, 22);
             const iso = availableByMinute.get(cell.minute)?.startsAt ?? heldSlot?.startsAt;
@@ -130,7 +129,8 @@ export function DayRail({
               return (
                 <motion.div
                   key={cell.minute}
-                  layout={!reduce}
+                  initial={reduce ? false : { opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   transition={SPRING}
                   className="absolute left-1.5 right-1.5 overflow-hidden rounded-md border-2 border-caution bg-caution-wash shadow-elev-2"
                   style={{ top: top - 1, height: height + 2 }}
@@ -160,7 +160,6 @@ export function DayRail({
               <motion.button
                 key={cell.minute}
                 type="button"
-                layout={!reduce}
                 disabled={!clickable}
                 onClick={() => iso && onSlotClick(iso)}
                 animate={
@@ -192,7 +191,6 @@ export function DayRail({
               </motion.button>
             );
           })}
-        </LayoutGroup>
 
         {/* Now line */}
         <AnimatePresence>
