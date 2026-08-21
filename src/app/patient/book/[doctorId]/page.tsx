@@ -107,6 +107,7 @@ export default function BookPage({ params }: { params: Promise<{ doctorId: strin
   }, [doctor, date]);
 
   const nextOpen = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     return slots.find((s) => new Date(s.startsAt).getTime() > now) ?? slots[0] ?? null;
   }, [slots]);

@@ -37,7 +37,7 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  function useDemo(d: (typeof DEMO)[number]) {
+  function fillDemo(d: (typeof DEMO)[number]) {
     setEmail(d.email);
     setPassword(d.password);
     navigator.clipboard?.writeText(`${d.email} / ${d.password}`).catch(() => {});
@@ -117,7 +117,7 @@ export default function LoginPage() {
                 <button
                   key={d.role}
                   type="button"
-                  onClick={() => useDemo(d)}
+                  onClick={() => fillDemo(d)}
                   className="flex w-full items-center justify-between gap-3 rounded border border-ink-line bg-surface-overlay px-3 py-2 text-left text-sm shadow-elev-1 hover:border-clinical"
                 >
                   <span>

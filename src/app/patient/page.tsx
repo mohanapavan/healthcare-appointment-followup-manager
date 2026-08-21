@@ -31,8 +31,11 @@ export default async function FindDoctorPage({
     }),
   ]);
 
+  // Server Component: runs per request, so "now" is the request time.
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
   const daysUntil = nextBooking
-    ? Math.max(0, Math.ceil((nextBooking.startsAt.getTime() - Date.now()) / 86_400_000))
+    ? Math.max(0, Math.ceil((nextBooking.startsAt.getTime() - nowMs) / 86_400_000))
     : null;
 
   return (

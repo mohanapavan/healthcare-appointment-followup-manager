@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { Photo } from "@/components/media";
 import { Mark, Wordmark, INSTITUTION } from "@/components/brand";
 import { AiDisclosure, Eyebrow } from "@/components/ui";
-import { ArrowRight, Calendar, Clock, Shield, Stethoscope, User } from "@/components/icons";
+import { ArrowRight, Calendar, Clock, Shield, User } from "@/components/icons";
 import { formatClinicDateTime } from "@/lib/format-clinic-time";
 
 interface Stats {

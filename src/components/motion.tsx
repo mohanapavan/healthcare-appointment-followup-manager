@@ -84,6 +84,7 @@ export function AnimatedNumber({
   const ref = useRef(reduce ? value : 0);
   useEffect(() => {
     if (reduce) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplay(value);
       return;
     }
@@ -119,7 +120,10 @@ export function Sheet({
   // Portal to <body> so a transformed ancestor (route/stagger motion) can't
   // scope this fixed overlay to itself. Mount-gated for SSR safety.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) {
