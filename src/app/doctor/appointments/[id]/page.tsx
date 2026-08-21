@@ -81,7 +81,7 @@ export default async function DoctorAppointmentPage({ params }: { params: Promis
                   <AiDisclosure source={preVisit?.source} />
                 </div>
               ) : (
-                <p className="mt-3 text-sm italic text-ink-400">Summary is being generated…</p>
+                <p className="mt-3 text-sm italic text-ink-500">Summary is being generated…</p>
               )}
             </>
           ) : (

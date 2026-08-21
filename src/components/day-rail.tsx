@@ -136,10 +136,10 @@ export function DayRail({
                   style={{ top: top - 1, height: height + 2 }}
                 >
                   <div className="flex h-full items-center justify-between px-2.5">
-                    <span className="font-tabular text-xs font-semibold text-caution">
+                    <span className="font-tabular text-xs font-semibold text-caution-ink">
                       {formatMinute(cell.minute)} · holding
                     </span>
-                    <span className="font-tabular text-xs font-bold tabular-nums text-caution" aria-live="polite">
+                    <span className="font-tabular text-xs font-bold tabular-nums text-caution-ink" aria-live="polite">
                       {secondsLeft !== null ? fmtClock(secondsLeft) : ""}
                     </span>
                   </div>
@@ -264,7 +264,7 @@ export function CountdownRing({ secondsLeft, total = 300 }: { secondsLeft: numbe
 }
 
 function cellStyle(state: string, isPending: boolean): string {
-  if (isPending) return "border-2 border-caution bg-caution-wash text-caution shadow-elev-2 cursor-wait";
+  if (isPending) return "border-2 border-caution bg-caution-wash text-caution-ink shadow-elev-2 cursor-wait";
   switch (state) {
     case "available":
       return "border border-clinical-line bg-surface-overlay text-clinical shadow-elev-1 hover:bg-clinical hover:text-white hover:shadow-elev-2 cursor-pointer";

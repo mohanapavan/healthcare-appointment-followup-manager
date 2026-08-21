@@ -128,7 +128,7 @@ export function Button({
 const URGENCY: Record<string, { wrap: string; label: string; icon: boolean; weight: string }> = {
   // Urgency is label + weight + shape + color — never color alone (§0).
   High: { wrap: "bg-urgent text-white", label: "High", icon: true, weight: "font-bold" },
-  Medium: { wrap: "bg-surface-overlay text-caution border border-caution-line", label: "Medium", icon: false, weight: "font-semibold" },
+  Medium: { wrap: "bg-surface-overlay text-caution-ink border border-caution-line", label: "Medium", icon: false, weight: "font-semibold" },
   Low: { wrap: "bg-surface-overlay text-confirmed border border-confirmed-line", label: "Low", icon: false, weight: "font-medium" },
 };
 
@@ -145,7 +145,7 @@ export function UrgencyBadge({ urgency }: { urgency: "Low" | "Medium" | "High" }
 }
 
 const STATUS: Record<string, { dot: string; text: string }> = {
-  HELD: { dot: "bg-caution", text: "text-caution" },
+  HELD: { dot: "bg-caution", text: "text-caution-ink" },
   CONFIRMED: { dot: "bg-confirmed", text: "text-confirmed" },
   COMPLETED: { dot: "bg-ink-400", text: "text-ink-500" },
   CANCELLED_BY_PATIENT: { dot: "bg-ink-400", text: "text-ink-500" },
@@ -238,7 +238,7 @@ export function AiDisclosure({ source }: { source?: "LLM" | "FALLBACK" }) {
   return (
     <p className="mt-3 border-t border-ink-line pt-2 text-xs text-ink-500">
       {source === "FALLBACK" && (
-        <span className="mr-1.5 font-medium text-caution">Rules-based summary —</span>
+        <span className="mr-1.5 font-medium text-caution-ink">Rules-based summary —</span>
       )}
       AI-generated, reviewed by your doctor.
     </p>
@@ -256,7 +256,7 @@ export function Label({ children, htmlFor }: { children: ReactNode; htmlFor: str
 }
 
 const FIELD =
-  "w-full rounded-md border border-ink-line-strong bg-surface-overlay px-3.5 py-2.5 text-sm text-ink-900 shadow-elev-1 placeholder:text-ink-400 focus:border-clinical focus:outline-none";
+  "w-full rounded-md border border-ink-line-strong bg-surface-overlay px-3.5 py-2.5 text-sm text-ink-900 shadow-elev-1 placeholder:text-ink-500 focus:border-clinical focus:outline-none";
 
 export function Input({ invalid, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }) {
   return (

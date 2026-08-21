@@ -76,7 +76,7 @@ export default async function AdminOutboxPage() {
                     <p className="font-medium text-ink-900">{event.type.replaceAll("_", " ")}</p>
                     <span className="font-tabular text-xs text-ink-500">· {event.attempts} attempts</span>
                   </div>
-                  <p className="mt-1 font-tabular text-xs text-ink-400">
+                  <p className="mt-1 font-tabular text-xs text-ink-500">
                     last failed {event.updatedAt.toLocaleString()}
                   </p>
                   {event.lastError && (

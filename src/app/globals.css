@@ -25,7 +25,8 @@
   --clinical: #2f5d8a; /* primary action */
   --clinical-deep: #1f4266; /* hover / pressed / inverse-panel accent */
   --urgent: #b3423e;
-  --caution: #c2701a; /* shifted orange, away from the brass */
+  --caution: #c2701a; /* shifted orange, away from the brass — for fills/borders/large text */
+  --caution-ink: #8f5310; /* darker caution for small text — meets AA (4.5:1) on light surfaces */
   --confirmed: #3f7856;
 
   /* Semantic washes (backgrounds) + lines (borders). Solid equivalents of the
@@ -78,6 +79,7 @@
   --color-urgent-wash: var(--urgent-wash);
   --color-urgent-line: var(--urgent-line);
   --color-caution: var(--caution);
+  --color-caution-ink: var(--caution-ink);
   --color-caution-wash: var(--caution-wash);
   --color-caution-line: var(--caution-line);
   --color-confirmed: var(--confirmed);

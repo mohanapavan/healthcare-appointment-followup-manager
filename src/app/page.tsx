@@ -158,7 +158,7 @@ export default async function LandingPage() {
             <div className="rounded-lg border border-ink-line border-l-2 border-l-brass bg-surface-raised p-6 shadow-elev-1">
               <div className="mb-3 flex items-center justify-between">
                 <p className="font-display font-semibold text-ink-900">Pre-visit summary</p>
-                <span className="inline-flex items-center gap-1.5 rounded-sm bg-surface-overlay px-2 py-0.5 text-xs font-semibold text-caution ring-1 ring-caution-line">
+                <span className="inline-flex items-center gap-1.5 rounded-sm bg-surface-overlay px-2 py-0.5 text-xs font-semibold text-caution-ink ring-1 ring-caution-line">
                   Urgency: Medium
                 </span>
               </div>
@@ -312,21 +312,21 @@ function MiniRail() {
             <div
               className={`flex h-16 items-center justify-center rounded-md border text-center font-tabular text-[11px] ${
                 s.state === "held"
-                  ? "border-caution bg-caution-wash font-semibold text-caution"
+                  ? "border-caution bg-caution-wash font-semibold text-caution-ink"
                   : s.state === "booked"
-                    ? "border-ink-line bg-surface-base text-ink-400"
+                    ? "border-ink-line bg-surface-base text-ink-500"
                     : s.state === "done"
-                      ? "border-dashed border-ink-line text-ink-400"
+                      ? "border-dashed border-ink-line text-ink-500"
                       : "border-clinical-line bg-surface-overlay text-clinical shadow-elev-1"
               }`}
             >
               {s.state === "held" ? "hold 4:32" : s.state === "booked" ? "booked" : s.state === "done" ? "—" : "open"}
             </div>
-            <div className="mt-1 font-tabular text-[10px] text-ink-400">{s.label}</div>
+            <div className="mt-1 font-tabular text-[10px] text-ink-500">{s.label}</div>
           </div>
         ))}
       </div>
-      <p className="mt-3 flex items-center gap-1.5 font-tabular text-xs text-caution">
+      <p className="mt-3 flex items-center gap-1.5 font-tabular text-xs text-caution-ink">
         <Clock width={12} height={12} /> 10:00 held — 4:32 left
       </p>
     </div>

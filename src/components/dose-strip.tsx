@@ -51,7 +51,7 @@ export function DoseStrip({
           </div>
         ))}
       </div>
-      <div className="mt-1 flex justify-between font-tabular text-[10px] text-ink-400">
+      <div className="mt-1 flex justify-between font-tabular text-[10px] text-ink-500">
         <span>12a</span>
         <span>6a</span>
         <span>12p</span>

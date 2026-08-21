@@ -89,7 +89,7 @@ export function CompleteVisitForm({ bookingId }: { bookingId: string }) {
             <p className="flex items-center gap-1.5 text-sm font-medium text-ink-900">
               <Pill width={15} height={15} className="text-clinical" /> Prescription
             </p>
-            <span className="font-tabular text-xs text-ink-400">{items.length} item{items.length === 1 ? "" : "s"}</span>
+            <span className="font-tabular text-xs text-ink-500">{items.length} item{items.length === 1 ? "" : "s"}</span>
           </div>
 
           <div className="space-y-2.5">

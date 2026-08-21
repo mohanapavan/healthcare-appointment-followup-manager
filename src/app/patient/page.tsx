@@ -108,7 +108,7 @@ export default async function FindDoctorPage({
                 <div className="min-w-0 flex-1">
                   <p className="font-display font-semibold text-ink-900">Dr. {doctor.user.name}</p>
                   <p className="truncate text-sm text-ink-500">{doctor.specialisation}</p>
-                  <p className="mt-1 font-tabular text-xs text-ink-400">{doctor.slotDurationMins}-minute appointments</p>
+                  <p className="mt-1 font-tabular text-xs text-ink-500">{doctor.slotDurationMins}-minute appointments</p>
                 </div>
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink-line text-ink-500 transition-colors group-hover:border-clinical group-hover:bg-clinical group-hover:text-white">
                   <ArrowRight width={16} height={16} />

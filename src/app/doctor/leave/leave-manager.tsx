@@ -119,7 +119,7 @@ export function LeaveManager({
               <p className="text-sm text-confirmed mb-3">No appointments are affected.</p>
             ) : (
               <div className="mb-3 rounded-md border border-caution bg-caution-bg px-3 py-2">
-                <p className="text-sm font-medium text-caution mb-1">
+                <p className="text-sm font-medium text-caution-ink mb-1">
                   {affected.length} appointment{affected.length === 1 ? "" : "s"} affected — each patient will be emailed with rebooking options.
                 </p>
                 <ul className="text-sm text-ink space-y-0.5 font-tabular">

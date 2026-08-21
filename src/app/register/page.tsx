@@ -83,7 +83,7 @@ export default function RegisterPage() {
             <div>
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" autoComplete="new-password" required value={form.password} onChange={set("password")} invalid={!!fieldErrors.password} />
-              {fieldErrors.password ? <FieldError>{fieldErrors.password}</FieldError> : <p className="mt-1.5 text-xs text-ink-400">At least 8 characters.</p>}
+              {fieldErrors.password ? <FieldError>{fieldErrors.password}</FieldError> : <p className="mt-1.5 text-xs text-ink-500">At least 8 characters.</p>}
             </div>
             <Button type="submit" size="lg" className="w-full" disabled={loading}>
               {loading ? "Creating account…" : "Create account"}

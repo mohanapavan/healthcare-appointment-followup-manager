@@ -47,7 +47,7 @@ export default async function AdminDoctorsPage() {
                   <tr key={d.id} className="border-b border-ink-line align-top last:border-0 hover:bg-surface-base/60">
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-ink-900">Dr. {d.user.name}</p>
-                      <p className="font-tabular text-xs text-ink-400">{d.user.email}</p>
+                      <p className="font-tabular text-xs text-ink-500">{d.user.email}</p>
                     </td>
                     <td className="px-5 py-3.5 text-ink-700">{d.specialisation}</td>
                     <td className="px-5 py-3.5 text-right font-tabular text-ink-700">{d.slotDurationMins}m</td>
@@ -67,7 +67,7 @@ export default async function AdminDoctorsPage() {
                             ))}
                         </div>
                       ) : (
-                        <span className="text-xs font-medium text-caution">Not bookable — no hours</span>
+                        <span className="text-xs font-medium text-caution-ink">Not bookable — no hours</span>
                       )}
                     </td>
                   </tr>
@@ -76,7 +76,7 @@ export default async function AdminDoctorsPage() {
             </table>
           </div>
           {bookable < doctors.length && (
-            <div className="border-t border-ink-line bg-caution-wash px-5 py-2.5 text-xs font-medium text-caution">
+            <div className="border-t border-ink-line bg-caution-wash px-5 py-2.5 text-xs font-medium text-caution-ink">
               {doctors.length - bookable} doctor{doctors.length - bookable === 1 ? "" : "s"} not yet bookable — no working hours set.
             </div>
           )}
