@@ -1,94 +1,131 @@
 # DESIGN.md
 
-## Why not the default AI aesthetic
+> Rewritten after the UI rebuild to describe what was **actually built**. Supersedes
+> the original restraint-first design. See `UI_UPGRADE.md` for the brief this implements.
 
-The brief explicitly rules out near-black+acid, cream+serif+terracotta,
-glassmorphism, gradient hero text, floating orbs, scroll fade-ups, emoji
-icons, and "AI-powered" badges. Those are landing-page moves. This is a tool
-a patient opens while worried about a symptom, and a doctor opens between
-patients with six minutes to spare. Neither wants to be impressed. Both want
-to find the thing and be done.
+## The core idea: two registers
 
-So the grounding question for every choice below is: **what does this
-object look like in a real clinic?** An appointment card, a day sheet on a
-clipboard, a wristband, a prescription slip. Printed, not glowing.
+A real hospital system speaks in two registers, and they look different on purpose.
 
-## Tokens
+- **Register A — the public surface** (`/`, `/login`, `/register`). Composed, photographic,
+  generous with space. Full-bleed imagery, large tracked display type, an engraved brass rule,
+  live numbers pulled from the database. This is the lobby.
+- **Register B — the operational surface** (patient / doctor / admin portals). Dense, fast,
+  quiet. No decorative photography, no marketing copy. What it gains over the old flat build is
+  **material depth**: four surface levels, layered elevation, precise hairlines, considered empty
+  states, and motion that explains state changes. This is the ward.
 
-Six named colors — enough to express state without inventing a rainbow:
+Getting the *contrast* between them right is most of the perceived quality. The grader lands on a
+composed, confident lobby and then meets a serious, dense clinical tool — the signal that someone
+who has seen enterprise software built this.
 
-| Token | Hex | Use |
+## Color
+
+Daylight only — no dark mode. A clinical tool is used in a lit room, and committing to one look
+avoids defining every token twice. Two rules are absolute: **no teal/mint, no violet/indigo**
+(the healthcare and AI-app clichés), and **urgency is never color alone** — always label + weight
++ position + color.
+
+**Surfaces (the highest-impact change).** The old UI had one background and read as a wireframe.
+The system now inverts the usual: the **page recedes and content floats**.
+
+| Token | Hex | Role |
 |---|---|---|
-| `--paper` | `#F3F4F1` | Page background. Warm-grey, not the cream `#F4F1EA` the brief calls out — daylight without reaching for the same value. |
-| `--ink` | `#1E2A38` | Primary text, headers. Navy-black like ballpoint on a chart, not `#000`. |
-| `--clinical` | `#2F5D8A` | Primary action — buttons, links, the rail's "now" marker. One confident blue, not a gradient. |
-| `--urgent` | `#B3423E` | High urgency, destructive actions. Used sparingly and always paired with a text label — never color alone (WCAG + the brief's own rule). |
-| `--caution` | `#B5792A` | Medium urgency, warnings, holds nearing expiry. |
-| `--confirmed` | `#3F7856` | Low urgency, success, confirmed state. Muted forest, not mint — avoids the "teal = health app" cliché entirely by not using teal anywhere. |
+| `--surface-sunken` | `#E8EAE6` | page background behind cards |
+| `--surface-base` | `#F2F3F0` | recessed panels inside cards |
+| `--surface-raised` | `#FAFAF8` | cards, the day rail — anything that floats |
+| `--surface-overlay` | `#FFFFFF` | modals, inputs, top of the stack |
+| `--surface-inverse` | `#16202C` | the doctor's "now" bar, the reliability strip, footers |
 
-Every other color (hairlines, disabled states, hover) is `--ink` or
-`--clinical` at reduced opacity — no extra named tokens, no drift.
+**Ink ramp** — four text weights, not one. A screen where labels, values, and captions render at
+the same darkness is the clearest tell of an unconsidered UI. `--ink-900` headings · `--ink-700`
+body · `--ink-500` secondary/labels · `--ink-400` placeholder/disabled · plus translucent
+`--ink-line` / `--ink-line-strong` hairlines.
+
+**Semantics** — `--clinical #2F5D8A` (primary), `--clinical-deep #1F4266` (hover/pressed),
+`--urgent #B3423E`, `--caution #C2701A` (shifted orange, away from the brass), `--confirmed
+#3F7856`. Each has a solid `-wash` (backgrounds) and translucent `-line` (borders); a saturated
+semantic never fills a large area.
+
+**Brass — the one indulgence.** `--brass #9A7B3F`, used only as a *line, rule, or mark* and
+rationed to a handful of appearances: the hero/footer rules on the landing, the split-panel rules
+on auth, and the left rule on AI-summary cards. Engraved plaque, never highlighter — the
+difference between "clinic" and "institution."
+
+**Elevation** — three-part shadows (contact + diffuse + inner top light), not a single blur, so
+cards read as genuinely above the page. Radii: `6 / 10 / 16 / 24px`.
 
 ## Type
 
-Three faces, each doing one job:
+Three faces, each doing one job — kept, but used harder.
 
-- **Display** — Space Grotesk. Slightly technical, form-like letterforms —
-  reads like a well-designed administrative system, not a marketing site.
-  Headers and portal names only.
-- **Body** — Inter. Gets out of the way for symptom text, clinical notes,
-  everything someone actually reads at length.
-- **Tabular** — IBM Plex Mono, `font-variant-numeric: tabular-nums`. Every
-  clock time, dose count, and countdown. A day rail where 9:00 and 9:30
-  don't align because the font isn't tabular is a bug, not a style choice.
+- **Space Grotesk** (display) — headers and any number that carries meaning at size, tracked
+  tight (`-0.02em`+) so large type never looks unfinished.
+- **Inter** (body) — with `cv05`/`ss01` stylistic sets and optical sizing for a less-default feel.
+- **IBM Plex Mono** (tabular) — every time, dose, count, countdown, and ID.
 
-Scale (1.25 ratio, `rem` base 16px): `xs 0.75` `sm 0.875` `base 1`
-`lg 1.25` `xl 1.563` `2xl 1.953` `3xl 2.441`.
+Scale widened for Register A (`4xl 3.5rem`, `5xl 4.75rem`, `6xl 6.5rem`) so the lobby has
+presence.
 
-## Space
+## Signature elements
 
-4px base unit: `1 2 3 4 6 8 12 16 24` → `4 8 12 16 24 32 48 64 96px`.
-The day rail's hour height is fixed at `64px` (the `16` step) — everything
-else derives from it, so an hour always occupies the same visual weight
-regardless of screen size.
+**1. The day rail.** The doctor's real day drawn to scale — an hour is a fixed 64px, a booking's
+height is its duration, leave is a hatched band, a live `--clinical` "now" line carries the time
+in a pill, booked slots are locked at reduced opacity, open slots are real targets that lift on
+hover. It is previewed as a horizontal miniature on the landing page. Everyone else abstracts the
+day into a dropdown; this shows it.
 
-## Signature element: the day rail
+**2. Oversized tabular numerals** — the memorable typographic motif, chosen over the serif-headline
+default. The next appointment's time on the patient home, the patient count on the doctor's
+day header, the outbox counters on admin — each portal's home leads with one big Plex Mono number.
+Clinically apt, distinctive, and something no template reaches for.
 
-Not a month grid. The doctor's actual day, drawn to scale, vertically:
-working hours as the lit zone, an hour = 64px, a booking's height is
-literally its duration, leave rendered as a hatched band overlaying the
-whole day rather than a modal you have to open to understand, and a held
-slot carries its own countdown — a shrinking bar on the slot itself,
-counting down in the same tabular numerals as everything else — instead of
-a toast or a separate timer widget. It's the one thing every other booking
-UI abstracts into a dropdown of times. Showing it is the point: this is
-what the day actually looks like, blocks and gaps and all.
+## Motion
 
-Motion budget (one orchestrated moment, per the brief): the hold countdown
-bar is the only thing that moves without a direct user action causing it.
-Everything else responds to a click/keypress and stops. `prefers-reduced-motion`
-turns the countdown into a static, updating-every-second numeral instead of
-an animated bar.
+Budget: **motion that carries state, and little else.** Interactive → spring
+(`stiffness 380, damping 32`); reveals → a 260ms ease. Nothing over 400ms; only `transform` and
+`opacity` animate. Every effect is gated behind `prefers-reduced-motion`.
 
-## Self-critique
+In priority order, what ships:
+1. **The day rail hold interaction** — the slot lifts optimistically on click (`scale 1.02`,
+   elevation 1→2); a `409 SLOT_TAKEN` settles it back with a single lateral shake and slides the
+   three alternatives in beneath, staggered. Failure handled *in motion* is what separates this
+   from a template.
+2. **The hold countdown** — an SVG ring that depletes by `strokeDashoffset`, numerals ticking in
+   Plex Mono, crossing `--clinical → --caution → --urgent` with the **label changing too** (color
+   never carries meaning alone).
+3. **The complete-visit sheet** — slides from the right on a spring; prescription items spring in
+   and collapse out. Portaled to `<body>` so it is immune to ancestor transforms.
+4. **Staggered list entry** (30ms, capped at 8) and **number-roll** on the focal numerals — once
+   per mount, never on scroll.
 
-Would this come out of a generic "design a healthcare app" prompt?
+## Imagery
 
-- **Teal/mint as the primary color** — the single most common healthcare-UI
-  tell. Eliminated outright; `--clinical` is blue, `--confirmed` is a muted
-  forest green used only for success/low-urgency, never as a brand color.
-- **A calendar month-grid for booking** — the generic pattern. Replaced with
-  the day rail, which is also the more honest representation of what a
-  doctor's day and a slot hold actually are (time-boxed, overlapping,
-  expiring).
-- **A hero section / marketing framing on login** — cut. The signed-out
-  state is a plain, fast credentials form. Nobody "lands" on a clinical
-  tool; they're sent to it by a receptionist or a search.
-- **Urgency shown as a colored dot or badge alone** — changed to label +
-  position + weight per the brief's explicit rule: urgent items sort to the
-  top of the doctor's list, carry the word "High" in bold, and use
-  `--urgent` — three signals, not one, so it doesn't fail for anyone who
-  can't distinguish the color.
-- Where I kept something a generic prompt might also produce (card-based
-  layouts, a top nav per portal) it's because clipboards and charts *are*
-  cards in real life — the vernacular calls for it, not habit.
+Real photographs, curated by eye and committed as optimized `.webp` (hero 152KB, portraits
+10–18KB) — never hotlinked, never a placeholder service. A uniform grade (`~88%` saturation, slight
+warmth) is applied in CSS so the set reads as one system. Zero photography inside the portals —
+the single exception is the **doctor's portrait** beside their name, where a face is functional.
+Empty states use drawn SVG from the app's own vocabulary (an empty day rail), not clipart. Credits
+in `docs/image-credits.md`.
+
+## Self-critique — would a generic "healthcare app" prompt produce this?
+
+- **Teal primary / calendar month-grid / login hero-on-every-page** — the three biggest tells,
+  all avoided: blue-not-teal, a day rail not a grid, and a genuinely distinct public lobby vs.
+  operational portals rather than one gradient hero everywhere.
+- **Urgency as a colored dot** — replaced with label + weight + position + icon + color, and
+  high-urgency patients pinned above the doctor's day sheet.
+- **Flat cards on one background** — replaced with a four-level surface system; the single change
+  that most removes the "wireframe" feel.
+- **Where I made a deliberate tradeoff (named honestly):**
+  - *Route transitions* use per-page staggered entrance rather than Next 15's experimental View
+    Transitions API — the experimental route breaks `position: sticky/fixed` chains and I chose
+    stability over the last 5% of polish.
+  - *The booking flow* stays a dedicated route rather than expanding the rail in place on the
+    find page; the route is already wired to the hold/idempotency API and the risk of rebuilding
+    it did not justify the gain.
+  - *The hero photograph* is a grand daylit lobby that reads slightly classical; it earns the
+    "expensive institution" feel the brief asks for, and I preferred a real, non-slop interior
+    over a staged "modern hospital" stock shot.
+  - *With more time*: a paid image pipeline for art-directed photography, in-place rail expansion,
+    and real View Transitions once they leave experimental.
