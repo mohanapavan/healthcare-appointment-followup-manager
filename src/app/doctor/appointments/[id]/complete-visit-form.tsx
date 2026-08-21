@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, ErrorBanner, Input, Label, Textarea } from "@/components/ui";
+import { Button, ErrorBanner, Input, Label, Textarea } from "@/components/ui";
+import { Sheet, motion, AnimatePresence, SPRING } from "@/components/motion";
+import { Pill, X } from "@/components/icons";
 
 interface PrescriptionItemDraft {
   medicationName: string;
@@ -22,6 +24,7 @@ const EMPTY_ITEM: PrescriptionItemDraft = {
 
 export function CompleteVisitForm({ bookingId }: { bookingId: string }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [clinicalNotes, setClinicalNotes] = useState("");
   const [items, setItems] = useState<PrescriptionItemDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +57,7 @@ export function CompleteVisitForm({ bookingId }: { bookingId: string }) {
         setError(data.error?.message ?? "Could not complete this visit.");
         return;
       }
+      setOpen(false);
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -61,69 +65,94 @@ export function CompleteVisitForm({ bookingId }: { bookingId: string }) {
   }
 
   return (
-    <Card>
-      <p className="font-display font-semibold text-ink mb-3">Complete visit</p>
-      {error && (
-        <div className="mb-3">
-          <ErrorBanner message={error} />
+    <>
+      <Button onClick={() => setOpen(true)}>Complete visit</Button>
+
+      <Sheet open={open} onClose={() => (submitting ? undefined : setOpen(false))} title="Complete visit" width={480}>
+        {error && (
+          <div className="mb-4">
+            <ErrorBanner message={error} />
+          </div>
+        )}
+
+        <Label htmlFor="clinicalNotes">Clinical notes</Label>
+        <Textarea
+          id="clinicalNotes"
+          rows={4}
+          value={clinicalNotes}
+          onChange={(e) => setClinicalNotes(e.target.value)}
+          placeholder="Diagnosis, findings, treatment plan…"
+        />
+
+        <div className="mt-6">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-ink-900">
+              <Pill width={15} height={15} className="text-clinical" /> Prescription
+            </p>
+            <span className="font-tabular text-xs text-ink-400">{items.length} item{items.length === 1 ? "" : "s"}</span>
+          </div>
+
+          <div className="space-y-2.5">
+            <AnimatePresence initial={false}>
+              {items.map((item, i) => (
+                <motion.div
+                  key={i}
+                  layout
+                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+                  transition={SPRING}
+                  className="rounded-md border border-ink-line bg-surface-base p-3"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-ink-500">
+                      Medication {i + 1}
+                    </span>
+                    <button
+                      onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
+                      aria-label={`Remove medication ${i + 1}`}
+                      className="rounded p-1 text-ink-400 hover:bg-urgent-wash hover:text-urgent"
+                    >
+                      <X width={14} height={14} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <Label htmlFor={`med-${i}`}>Name</Label>
+                      <Input id={`med-${i}`} value={item.medicationName} onChange={(e) => updateItem(i, { medicationName: e.target.value })} />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor={`dose-${i}`}>Dosage</Label>
+                      <Input id={`dose-${i}`} value={item.dosage} onChange={(e) => updateItem(i, { dosage: e.target.value })} placeholder="e.g. 500mg" />
+                    </div>
+                    <div>
+                      <Label htmlFor={`freq-${i}`}>Times/day</Label>
+                      <Input id={`freq-${i}`} type="number" min={1} max={12} value={item.timesPerDay} onChange={(e) => updateItem(i, { timesPerDay: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <Label htmlFor={`dur-${i}`}>Days</Label>
+                      <Input id={`dur-${i}`} type="number" min={1} max={365} value={item.durationDays} onChange={(e) => updateItem(i, { durationDays: Number(e.target.value) })} />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          <Button variant="secondary" size="sm" className="mt-2.5" onClick={() => setItems((prev) => [...prev, { ...EMPTY_ITEM }])}>
+            + Add medication
+          </Button>
         </div>
-      )}
 
-      <Label htmlFor="clinicalNotes">Clinical notes</Label>
-      <Textarea
-        id="clinicalNotes"
-        rows={4}
-        value={clinicalNotes}
-        onChange={(e) => setClinicalNotes(e.target.value)}
-        placeholder="Diagnosis, findings, treatment plan…"
-      />
-
-      <div className="mt-4">
-        <p className="text-sm font-medium text-ink mb-2">Prescription</p>
-        <div className="space-y-3">
-          {items.map((item, i) => (
-            <div key={i} className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-md border border-line p-3">
-              <div className="col-span-2 sm:col-span-1">
-                <Label htmlFor={`med-${i}`}>Medication</Label>
-                <Input id={`med-${i}`} value={item.medicationName} onChange={(e) => updateItem(i, { medicationName: e.target.value })} />
-              </div>
-              <div>
-                <Label htmlFor={`dose-${i}`}>Dosage</Label>
-                <Input id={`dose-${i}`} value={item.dosage} onChange={(e) => updateItem(i, { dosage: e.target.value })} />
-              </div>
-              <div>
-                <Label htmlFor={`freq-${i}`}>Times/day</Label>
-                <Input
-                  id={`freq-${i}`}
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={item.timesPerDay}
-                  onChange={(e) => updateItem(i, { timesPerDay: Number(e.target.value) })}
-                />
-              </div>
-              <div>
-                <Label htmlFor={`dur-${i}`}>Days</Label>
-                <Input
-                  id={`dur-${i}`}
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={item.durationDays}
-                  onChange={(e) => updateItem(i, { durationDays: Number(e.target.value) })}
-                />
-              </div>
-            </div>
-          ))}
+        <div className="mt-6 flex gap-2 border-t border-ink-line pt-4">
+          <Button className="flex-1" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Completing…" : "Complete visit"}
+          </Button>
+          <Button variant="secondary" onClick={() => setOpen(false)} disabled={submitting}>
+            Cancel
+          </Button>
         </div>
-        <Button variant="secondary" className="mt-2" onClick={() => setItems((prev) => [...prev, { ...EMPTY_ITEM }])}>
-          + Add medication
-        </Button>
-      </div>
-
-      <Button className="mt-5" onClick={handleSubmit} disabled={submitting}>
-        {submitting ? "Completing…" : "Complete visit"}
-      </Button>
-    </Card>
+      </Sheet>
+    </>
   );
 }
